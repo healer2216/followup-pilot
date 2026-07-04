@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>循证随访管家 - FollowUp Pilot</title>
+  <!-- Tailwind CSS Play CDN (支持JIT模式) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      safelist: [
+        { pattern: /text-(blue|emerald|amber|rose|violet|cyan|teal|gray)-(400|500|600|700)/ },
+        { pattern: /bg-(blue|emerald|amber|rose|violet|cyan|teal|gray)-(50|100|400)/ },
+        { pattern: /border-(blue|emerald|amber|rose|violet|cyan|teal|gray)-(100|300)/ },
+      ]
+    }
+  </script>
+  <script src="https://cdn.staticfile.org/lucide-icons/0.263.1/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.loli.net" />
+  <link href="https://fonts.loli.net/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: oklch(0.98 0.005 200);
+      --bg-card: oklch(1 0 0);
+      --text-primary: oklch(0.20 0.02 200);
+      --text-secondary: oklch(0.45 0.02 200);
+      --border: oklch(0.90 0.01 200);
+      --accent: oklch(0.56 0.16 195);
+      --accent-light: oklch(0.93 0.04 195);
+    }
+    body { background: var(--bg-primary); color: var(--text-primary); font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif; }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem;
+      box-shadow: 0 1px 3px oklch(0 0 0 / 0.04), 0 4px 12px oklch(0 0 0 / 0.03);
+      transition: box-shadow 200ms ease, transform 200ms ease;
+    }
+    .card:hover { box-shadow: 0 2px 8px oklch(0 0 0 / 0.06), 0 8px 24px oklch(0 0 0 / 0.05); }
+    .nav-item {
+      position: relative; padding: 0.625rem 1.25rem; border-radius: 0.5rem;
+      font-weight: 500; font-size: 0.875rem;
+      transition: background 200ms ease, color 200ms ease; cursor: pointer;
+    }
+    h1, h2, h3 { text-wrap: balance; }
+    button, a, .nav-item { touch-action: manipulation; }
+    .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .nav-item:hover { background: var(--accent-light); color: var(--accent); }
+    .nav-item.active { background: var(--accent); color: white; box-shadow: 0 2px 8px oklch(0.56 0.16 195 / 0.3); }
+    .timeline-line {
+      position: absolute; left: 1.25rem; top: 2.5rem; bottom: 0; width: 2px;
+      background: linear-gradient(to bottom, var(--accent), oklch(0.85 0.04 195));
+    }
+    .timeline-dot {
+      width: 2.5rem; height: 2.5rem; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 1.125rem; z-index: 1;
+    }
+    .evidence-tag {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      padding: 0.125rem 0.5rem; border-radius: 9999px;
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.025em;
+    }
+    .grade-a { background: oklch(0.90 0.06 145); color: oklch(0.35 0.12 145); }
+    .grade-b { background: oklch(0.92 0.05 195); color: oklch(0.35 0.10 195); }
+    .grade-c { background: oklch(0.94 0.04 85); color: oklch(0.45 0.10 85); }
+    .grade-d { background: oklch(0.94 0.03 45); color: oklch(0.50 0.08 45); }
+    .grade-e { background: oklch(0.94 0.02 0); color: oklch(0.50 0.06 0); }
+    .chat-bubble {
+      max-width: 80%; padding: 0.875rem 1.125rem; border-radius: 1rem;
+      font-size: 0.9rem; line-height: 1.6; animation: fadeIn 300ms ease-out;
+    }
+    .chat-ai {
+      background: oklch(0.96 0.02 200); border: 1px solid var(--border);
+      border-bottom-left-radius: 0.25rem; align-self: flex-start;
+    }
+    .chat-user {
+      background: var(--accent); color: white;
+      border-bottom-right-radius: 0.25rem; align-self: flex-end;
+    }
+    .alert-badge {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      padding: 0.375rem 0.875rem; border-radius: 9999px;
+      font-size: 0.8rem; font-weight: 600;
+    }
+    .alert-green { background: oklch(0.92 0.06 145); color: oklch(0.30 0.12 145); }
+    .alert-yellow { background: oklch(0.94 0.08 85); color: oklch(0.40 0.12 85); }
+    .alert-red { background: oklch(0.92 0.06 25); color: oklch(0.40 0.15 25); }
+    .risk-tag {
+      display: inline-flex; align-items: center; gap: 0.25rem;
+      padding: 0.25rem 0.625rem; border-radius: 0.375rem;
+      font-size: 0.75rem; font-weight: 500;
+    }
+    .risk-high { background: oklch(0.94 0.06 25); color: oklch(0.40 0.15 25); }
+    .risk-medium { background: oklch(0.94 0.08 85); color: oklch(0.40 0.12 85); }
+    .risk-low { background: oklch(0.92 0.06 145); color: oklch(0.30 0.12 145); }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 350ms ease-out; }
+    .skip-link {
+      position: absolute; top: -100%; left: 0; background: var(--accent);
+      color: white; padding: 0.5rem 1rem; z-index: 100;
+      font-size: 0.875rem; border-radius: 0 0 0.5rem 0;
+    }
+    .skip-link:focus { top: 0; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 1s linear infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .chat-bubble, .page.active { animation: none; }
+      .card, .nav-item, .btn-primary, .btn-secondary, textarea, input { transition: none; }
+      .spinner { animation: none; }
+    }
+    .disclaimer-bar { background: oklch(0.96 0.03 85); border: 1px solid oklch(0.88 0.06 85); color: oklch(0.40 0.10 85); }
+    textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px oklch(0.56 0.16 195 / 0.15); }
+    .btn-primary {
+      background: var(--accent); color: white; padding: 0.625rem 1.5rem; border-radius: 0.5rem;
+      font-weight: 600; font-size: 0.875rem;
+      transition: transform 200ms ease, box-shadow 200ms ease;
+      box-shadow: 0 2px 6px oklch(0.56 0.16 195 / 0.25);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px oklch(0.56 0.16 195 / 0.35); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: white; color: var(--text-primary); padding: 0.5rem 1rem;
+      border: 1px solid var(--border); border-radius: 0.5rem;
+      font-weight: 500; font-size: 0.8rem;
+      transition: border-color 200ms ease, color 200ms ease;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-secondary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .stat-card { text-align: center; padding: 1rem; border-radius: 0.5rem; background: oklch(0.97 0.01 200); }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.125rem; }
+    .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0; }
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.7); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999; opacity: 0; pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    .loading-overlay.active { opacity: 1; pointer-events: all; }
+    .loading-box {
+      background: white; padding: 2rem 3rem; border-radius: 1rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1); text-align: center;
+    }
+    .loading-spinner {
+      width: 3rem; height: 3rem; border: 3px solid #e5e7eb;
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 1s linear infinite; margin: 0 auto 1rem;
+    }
+    .loading-text { font-size: 1rem; color: var(--text-primary); font-weight: 500; }
+    .loading-subtext { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem; }
+    .task-color-blue { background: linear-gradient(to bottom right, #eff6ff, #eef2ff); border-color: #bfdbfe; }
+    .task-color-emerald { background: linear-gradient(to bottom right, #ecfdf5, #f0fdfa); border-color: #a7f3d0; }
+    .task-color-amber { background: linear-gradient(to bottom right, #fffbeb, #fff7ed); border-color: #fde68a; }
+    .task-color-rose { background: linear-gradient(to bottom right, #fff1f2, #fdf2f8); border-color: #fecdd3; }
+    .task-color-violet { background: linear-gradient(to bottom right, #f5f3ff, #faf5ff); border-color: #ddd6fe; }
+    .task-color-cyan { background: linear-gradient(to bottom right, #ecfeff, #f0f9ff); border-color: #a5f3fc; }
+    .task-color-medical { background: linear-gradient(to bottom right, oklch(0.97 0.02 195), #eff6ff); border-color: oklch(0.86 0.08 195); }
+  </style>
+  <script>
+    // 检测 Tailwind CSS 是否加载成功
+    window.addEventListener('load', function() {
+      const testEl = document.createElement('div');
+      testEl.className = 'hidden';
+      document.body.appendChild(testEl);
+      
+      // 检查 Tailwind 的 hidden 类是否生效
+      const isLoaded = getComputedStyle(testEl).display === 'none';
+      document.body.removeChild(testEl);
+      
+      if (!isLoaded) {
+        console.warn('[FollowUp Pilot] Tailwind CSS 加载失败，页面样式可能不正常');
+        console.warn('请检查网络连接或尝试使用无痕模式访问');
+        
+        // 显示错误提示
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#fef3c7;border:2px solid #f59e0b;padding:1rem;z-index:9999;text-align:center;font-family:sans-serif;';
+        errorDiv.innerHTML = '<strong>⚠️ 样式加载失败</strong><br>Tailwind CSS 未能加载，页面显示可能异常。<br>请刷新页面或清除浏览器缓存后重试。';
+        document.body.insertBefore(errorDiv, document.body.firstChild);
+      }
+    });
+  </script>
+</head>
+<body class="min-h-screen">
+  <a href="#main-content" class="skip-link">跳转到主要内容</a>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="text-center">
+      <i data-lucide="loader-2" class="w-8 h-8 text-teal-500 spinner mx-auto mb-3" aria-hidden="true"></i>
+      <p id="loading-text" class="text-sm text-gray-500">正在处理…</p>
+    </div>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer-bar text-center py-2 px-4 text-xs" role="alert">
+    <i data-lucide="alert-triangle" class="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true"></i>
+    本系统仅供健康参考，不构成医疗建议。所有随访计划基于循证文献自动生成，请遵医嘱执行。
+  </div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center">
+            <i data-lucide="heart-pulse" class="w-5 h-5 text-white" aria-hidden="true"></i>
+          </div>
+          <div>
+            <h1 class="text-base font-bold text-gray-900 leading-tight">循证随访管家</h1>
+            <p class="text-[10px] text-gray-400 -mt-0.5">FollowUp Pilot</p>
+          </div>
+        </div>
+        <nav class="flex items-center gap-1.5">
+          <button class="nav-item active" onclick="switchPage('upload')" id="nav-upload" aria-label="上传出院小结">
+            <i data-lucide="file-text" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>上传出院小结
+          </button>
+          <button class="nav-item" onclick="switchPage('plan')" id="nav-plan" aria-label="随访计划">
+            <i data-lucide="calendar-range" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>随访计划
+          </button>
+          <button class="nav-item" onclick="switchPage('chat')" id="nav-chat" aria-label="对话随访">
+            <i data-lucide="message-circle" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>对话随访
+          </button>
+        </nav>
+        <div class="flex items-center gap-3">
+          <div class="alert-badge alert-green" id="system-status">
+            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>系统正常
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ==================== PAGE 1: Upload ==================== -->
+    <div id="page-upload" class="page active">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2">
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold flex items-center gap-2">
+                <i data-lucide="file-text" class="w-5 h-5 text-teal-500" aria-hidden="true"></i>出院小结
+              </h2>
+              <button class="btn-secondary text-xs" onclick="loadSample()" aria-label="加载示例数据">
+                <i data-lucide="sparkles" class="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true"></i>加载示例
+              </button>
+            </div>
+            <label for="discharge-text" class="sr-only">出院小结文本</label>
+            <textarea id="discharge-text" name="discharge-text" rows="16" autocomplete="off"
+              class="w-full border border-gray-200 rounded-lg p-4 text-sm leading-relaxed resize-none"
+              placeholder="请粘贴出院小结全文…"></textarea>
+            <div class="flex items-center justify-between mt-4">
+              <p class="text-xs text-gray-400">支持纯文本粘贴，AI 将自动提取结构化信息</p>
+              <button class="btn-primary" id="btn-parse" onclick="parseSummary()" aria-label="AI 解析出院小结">
+                <i data-lucide="scan-search" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>AI 解析出院小结
+              </button>
+            </div>
+          </div>
+
+          <!-- Parsed Result (动态渲染) -->
+          <div class="card p-6 mt-6" id="parsed-result" style="display:none;"></div>
+        </div>
+
+        <!-- Right: Patient Profile -->
+        <div class="lg:col-span-1">
+          <div class="card p-6" id="patient-profile">
+            <h3 class="text-base font-semibold mb-4 flex items-center gap-2 text-gray-400">
+              <i data-lucide="user-circle" class="w-5 h-5" aria-hidden="true"></i>患者画像
+            </h3>
+            <p class="text-sm text-gray-400 text-center py-8">请先粘贴出院小结文本，点击“AI 解析出院小结”后显示患者风险评估</p>
+          </div>
+          <div class="card p-6 mt-6" id="evidence-stats">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2 text-gray-400">
+              <i data-lucide="database" class="w-4 h-4" aria-hidden="true"></i>循证检索统计
+            </h3>
+            <p class="text-sm text-gray-400 text-center py-8">解析后将显示从 KnowS 医学知识库检索的证据数量和质量分布</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+    <!-- ==================== PAGE 2: Plan ==================== -->
+    <div id="page-plan" class="page">
+      <div id="plan-content">
+        <div class="text-center py-20 text-gray-400">
+          <i data-lucide="calendar-range" class="w-12 h-12 mx-auto mb-4 opacity-30" aria-hidden="true"></i>
+          <p>请先在"上传出院小结"页面解析后，点击"生成随访计划"</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PAGE 3: Chat ==================== -->
+    <div id="page-chat" class="page">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="lg:col-span-3">
+          <div class="card flex flex-col" style="height: 70vh;">
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
+                  <i data-lucide="heart-pulse" class="w-4 h-4 text-teal-600" aria-hidden="true"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-semibold">随访助手</h3>
+                  <p class="text-[10px] text-gray-400">专业随访护士 | 循证驱动</p>
+                </div>
+              </div>
+              <div class="alert-badge alert-green" id="chat-alert">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>状态正常
+              </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-5 space-y-4" id="chat-messages">
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="heart-pulse" class="w-4 h-4 text-teal-600" aria-hidden="true"></i>
+                </div>
+                <div class="chat-bubble chat-ai">
+                  <p>您好，张先生！我是您的随访助手小循。</p>
+                  <p class="mt-2">请问您今天的身体状况如何？可以告诉我您的<strong>血糖</strong>、<strong>血压</strong>等指标，或者描述您的感受。</p>
+                  <p class="mt-3 text-[10px] text-gray-400 border-t border-gray-200 pt-2">*以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*</p>
+                </div>
+              </div>
+            </div>
+            <div class="p-4 border-t border-gray-100">
+              <div class="flex items-center gap-3">
+                <label for="chat-input" class="sr-only">输入您的情况</label>
+                <input id="chat-input" type="text" name="chat-message" placeholder="输入您的情况…" autocomplete="off"
+                  class="flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm"
+                  onkeydown="if(event.key==='Enter')sendMessage()" />
+                <button class="btn-primary px-5" onclick="sendMessage()" id="btn-send" aria-label="发送消息">
+                  <i data-lucide="send" class="w-4 h-4" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="lg:col-span-1 space-y-6" id="chat-sidebar">
+          <div class="card p-5" id="trend-panel">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-4 h-4 text-teal-500" aria-hidden="true"></i>指标趋势
+            </h3>
+            <p class="text-xs text-gray-400 text-center py-4">开始对话后将显示指标趋势</p>
+          </div>
+          <div class="card p-5">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+              <i data-lucide="bell" class="w-4 h-4 text-teal-500" aria-hidden="true"></i>预警记录
+            </h3>
+            <div id="alert-history" class="space-y-2">
+              <p class="text-xs text-gray-400 text-center py-2">暂无预警记录</p>
+            </div>
+          </div>
+          <div class="card p-5">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+              <i data-lucide="book-open" class="w-4 h-4 text-teal-500" aria-hidden="true"></i>引用证据
+            </h3>
+            <div id="evidence-list" class="space-y-2">
+              <p class="text-xs text-gray-400 text-center py-2">对话中将展示引用证据</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // ============================================================================
+    // 全局状态
+    // ============================================================================
+    const API_BASE = 'http://localhost:8080';
+    let sessionId = 'session-' + Date.now();
+    let parsedData = null;
+    let planData = null;
+    let alertRecords = [];
+    let allEvidence = [];
+
+    // ============================================================================
+    // 工具函数
+    // ============================================================================
+    function showLoading(text, subtext) {
+      const overlay = document.getElementById('loading-overlay');
+      const loadingBox = overlay.querySelector('.loading-box') || createLoadingBox();
+      
+      loadingBox.querySelector('.loading-text').textContent = text || '正在处理…';
+      if (subtext) {
+        loadingBox.querySelector('.loading-subtext').textContent = subtext;
+        loadingBox.querySelector('.loading-subtext').style.display = 'block';
+      } else {
+        loadingBox.querySelector('.loading-subtext').style.display = 'none';
+      }
+      
+      overlay.classList.add('active');
+    }
+    
+    function createLoadingBox() {
+      const overlay = document.getElementById('loading-overlay');
+      const box = document.createElement('div');
+      box.className = 'loading-box';
+      box.innerHTML = `
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在处理…</div>
+        <div class="loading-subtext" style="display:none"></div>
+      `;
+      overlay.appendChild(box);
+      return box;
+    }
+    
+    function hideLoading() {
+      document.getElementById('loading-overlay').classList.remove('active');
+    }
+
+    async function apiCall(url, data) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+          return { success: false, error: `HTTP ${res.status}: ${res.statusText}` };
+        }
+        return await res.json();
+      } catch (e) {
+        console.error('[API] Error:', e);
+        return { success: false, error: '网络错误: ' + e.message };
+      }
+    }
+
+    async function checkConnection() {
+      try {
+        const res = await fetch(`${API_BASE}/api/health`);
+        const data = await res.json();
+        if (data.status === 'ok') {
+          const statusEl = document.getElementById('system-status');
+          statusEl.className = 'alert-badge alert-green';
+          statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>已连接';
+          return true;
+        }
+      } catch (e) {
+        console.error('Connection check failed:', e);
+      }
+      const statusEl = document.getElementById('system-status');
+      statusEl.className = 'alert-badge alert-red';
+      statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span>未连接';
+      return false;
+    }
+
+    function safeCreateIcons() {
+      try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch(e) { console.warn('Lucide icons error:', e); }
+    }
+
+    function switchPage(page) {
+      history.replaceState(null, '', '#' + page);
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-' + page).classList.add('active');
+      const navMap = { upload: 'nav-upload', plan: 'nav-plan', chat: 'nav-chat' };
+      document.getElementById(navMap[page]).classList.add('active');
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const hash = window.location.hash.replace('#', '');
+      if (['upload', 'plan', 'chat'].includes(hash)) switchPage(hash);
+      safeCreateIcons();
+      checkConnection();
+    });
+
+    // ============================================================================
+    // Page 1: 上传出院小结
+    // ============================================================================
+    function loadSample() {
+      document.getElementById('discharge-text').value =
+`入院日期：2026-06-20  出院日期：2026-06-28
+患者姓名：张三  性别：男  年龄：65岁
+
+主诉：多饮多尿3月，血糖升高
+
+入院诊断：
+1. 2型糖尿病
+2. 高血压3级（极高危）
+3. 高脂血症
+
+入院情况：
+空腹血糖 12.3 mmol/L，糖化血红蛋白 9.8%，血压 165/98 mmHg，
+总胆固醇 6.2 mmol/L，LDL-C 4.1 mmol/L
+
+治疗经过：
+入院后给予胰岛素强化治疗控制血糖，同时口服二甲双胍 500mg bid，
+氨氯地平 5mg qd 降压，阿托伐他汀 20mg qn 调脂。
+经治疗后血糖逐渐平稳，空腹血糖降至 7.8 mmol/L。
+
+出院诊断：同入院诊断
+
+出院医嘱：
+1. 二甲双胍 500mg 早晚餐后口服
+2. 氨氯地平 5mg 晨起口服
+3. 阿托伐他汀 20mg 睡前口服
+4. 低盐低脂糖尿病饮食
+5. 定期监测血糖、血压
+6. 出院后2周门诊复查（内分泌科）
+7. 复查项目：糖化血红蛋白、肝肾功能、血脂
+
+注意事项：
+注意有无低血糖症状（心慌、出汗、手抖），如有发生及时进食。
+如出现头晕、视物模糊等症状及时就诊。`;
+    }
+
+    async function parseSummary() {
+      const text = document.getElementById('discharge-text').value;
+      if (!text.trim()) { alert('请先输入或粘贴出院小结文本'); return; }
+
+      showLoading('AI 正在解析出院小结…');
+      try {
+        const res = await apiCall('/api/parse', { text });
+        if (!res.success) { alert(res.error || '解析失败'); return; }
+        parsedData = res.data;
+        renderParsedResult(parsedData);
+        renderPatientProfile(parsedData.risk_profile);
+        renderEvidenceStats(parsedData.evidence_stats);
+      } catch (e) {
+        alert('请求失败: ' + e.message);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderParsedResult(data) {
+      const p = data.parsed;
+      const parseInfo = data.parse_info || {};
+      const el = document.getElementById('parsed-result');
+      const vitalColors = { high: 'text-red-500', low: 'text-blue-500', normal: '' };
+      
+      // 置信度颜色
+      const confidenceColor = parseInfo.confidence >= 0.8 ? 'text-green-600' : 
+                              parseInfo.confidence >= 0.6 ? 'text-yellow-600' : 'text-red-600';
+
+      el.innerHTML = `
+        <h3 class="text-base font-semibold mb-4 flex items-center gap-2">
+          <i data-lucide="check-circle-2" class="w-5 h-5 text-green-500" aria-hidden="true"></i>
+          解析结果
+          <span class="text-xs ${confidenceColor} font-normal ml-2">
+            置信度 ${Math.round((parseInfo.confidence || p.confidence || 0) * 100)}%
+          </span>
+        </h3>
+        
+        <!-- 核心价值展示：解析质量指标 -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="stat-card">
+            <div class="stat-value text-sm">${parseInfo.diagnoses?.length || p.diagnoses?.length || 0}</div>
+            <div class="stat-label">诊断数量</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-sm">${parseInfo.medication_count || p.medications?.length || 0}</div>
+            <div class="stat-label">用药数量</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value text-sm">${p.vital_signs?.length || 0}</div>
+            <div class="stat-label">检验指标</div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div><label class="text-xs text-gray-400 block mb-1">患者</label><p class="font-medium">${parseInfo.patient_name || p.patient_name}，${p.gender}，${p.age}岁</p></div>
+          <div><label class="text-xs text-gray-400 block mb-1">住院时间</label><p class="font-medium">${p.admission_date} 至 ${p.discharge_date}</p></div>
+          <div class="col-span-2">
+            <label class="text-xs text-gray-400 block mb-1">诊断</label>
+            <div class="flex flex-wrap gap-2">${(parseInfo.diagnoses || p.diagnoses || []).map(d => `<span class="px-2.5 py-1 bg-teal-50 text-teal-700 rounded-md text-xs font-medium">${d}</span>`).join('')}</div>
+          </div>
+          <div class="col-span-2">
+            <label class="text-xs text-gray-400 block mb-1">用药方案</label>
+            <div class="space-y-1.5">${p.medications.map(m => `
+              <div class="flex items-center gap-2 text-xs">
+                <span class="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                <span class="font-medium">${m.name}</span>
+                <span class="text-gray-400">${m.dosage} ${m.frequency} ${m.timing}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+          <div class="col-span-2">
+            <label class="text-xs text-gray-400 block mb-1">检验指标</label>
+            <div class="flex gap-4">${p.vital_signs.map(v => `
+              <div class="stat-card flex-1">
+                <div class="stat-value ${vitalColors[v.status] || ''}">${v.value}</div>
+                <div class="stat-label">${v.name} ${v.unit}</div>
+              </div>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="mt-5 pt-4 border-t border-gray-100 flex justify-end">
+          <button class="btn-primary" onclick="generatePlan()">
+            <i data-lucide="wand-2" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>生成随访计划
+          </button>
+        </div>`;
+      el.style.display = 'block';
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    function renderPatientProfile(risk) {
+      const el = document.getElementById('patient-profile');
+      const riskLabels = { low: '低风险', medium: '中风险', high: '高风险' };
+      const riskClass = { low: 'risk-low', medium: 'risk-medium', high: 'risk-high' };
+      const riskIcons = { low: 'shield-check', medium: 'alert-circle', high: 'alert-octagon' };
+
+      el.innerHTML = `
+        <h3 class="text-base font-semibold mb-4 flex items-center gap-2">
+          <i data-lucide="user-circle" class="w-5 h-5 text-teal-500" aria-hidden="true"></i>患者画像
+        </h3>
+        <div class="space-y-4">
+          <div class="p-3 rounded-lg bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-medium text-orange-700">整体风险等级</span>
+              <span class="risk-tag ${riskClass[risk.overall_risk]}">
+                <i data-lucide="${riskIcons[risk.overall_risk]}" class="w-3 h-3" aria-hidden="true"></i>${riskLabels[risk.overall_risk]}
+              </span>
+            </div>
+          </div>
+          <div>
+            <h4 class="text-xs font-medium text-gray-500 mb-2">风险因素</h4>
+            <div class="space-y-2">${risk.risk_factors.map((f, i) => `
+              <div class="flex items-start gap-2 text-xs">
+                <span class="w-1.5 h-1.5 rounded-full ${i < 2 ? 'bg-orange-400' : 'bg-amber-400'} mt-1.5 flex-shrink-0"></span>
+                <span>${f}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+          <div>
+            <h4 class="text-xs font-medium text-gray-500 mb-2">特殊注意事项</h4>
+            <div class="space-y-2">${risk.special_attention.map(a => `
+              <div class="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded-md">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-teal-500" aria-hidden="true"></i>${a}
+              </div>`).join('')}
+            </div>
+          </div>
+          <div>
+            <h4 class="text-xs font-medium text-gray-500 mb-2">药物相互作用</h4>
+            <div class="p-2.5 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800">
+              <i data-lucide="info" class="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true"></i>${risk.drug_interactions[0]}
+            </div>
+          </div>
+        </div>`;
+      el.style.display = 'block';
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    function renderEvidenceStats(stats) {
+      const el = document.getElementById('evidence-stats');
+      el.innerHTML = `
+        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+          <i data-lucide="database" class="w-4 h-4 text-teal-500" aria-hidden="true"></i>循证检索统计
+        </h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="stat-card"><div class="stat-value text-lg">${stats.search_queries}</div><div class="stat-label">检索查询</div></div>
+          <div class="stat-card"><div class="stat-value text-lg">${stats.total_results}</div><div class="stat-label">检索结果</div></div>
+          <div class="stat-card"><div class="stat-value text-lg">${stats.after_rerank}</div><div class="stat-label">重排序后</div></div>
+          <div class="stat-card"><div class="stat-value text-lg">${stats.cited}</div><div class="stat-label">引用注入</div></div>
+        </div>`;
+      el.style.display = 'block';
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    // ============================================================================
+    // Page 2: 随访计划
+    // ============================================================================
+    async function generatePlan() {
+      const summaryText = document.getElementById('summary-input').value.trim();
+      if (!summaryText) {
+        alert('请输入出院小结文本');
+        return;
+      }
+      
+      showLoading(
+        '多 Agent 正在协作生成随访计划…',
+        '步骤: 分诊分析 → 证据检索 → 计划生成 → 质量审核\n（首次运行可能需要2-5分钟，请耐心等待）'
+      );
+      
+      try {
+        // 调用新的 API 端点，传递 summary_text
+        const res = await apiCall('/api/plan', { 
+          summary_text: summaryText,
+          session_id: 'web_' + Date.now()
+        });
+        
+        if (!res.success) { 
+          alert(res.error || '生成失败'); 
+          return; 
+        }
+        
+        planData = res.data;
+        renderPlan(planData);
+        switchPage('plan');
+      } catch (e) {
+        alert('请求失败: ' + e.message);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderPlan(plan) {
+      const el = document.getElementById('plan-content');
+      const gradeClass = { A: 'grade-a', B: 'grade-b', C: 'grade-c', D: 'grade-d', E: 'grade-e' };
+      const dotColors = {
+        medical: 'bg-teal-100 text-teal-600 border-2 border-teal-300',
+        emerald: 'bg-emerald-100 text-emerald-600 border-2 border-emerald-300',
+        amber: 'bg-amber-100 text-amber-600 border-2 border-amber-300',
+      };
+
+      let html = `
+        <!-- 核心价值展示：多 Agent 协作流程 -->
+        <div class="card p-5 mb-6">
+          <h3 class="text-base font-semibold mb-4 flex items-center gap-2">
+            <i data-lucide="users" class="w-5 h-5 text-teal-500"></i>
+            多 Agent 协作流程
+            <span class="text-xs text-gray-400 font-normal ml-2">${plan.agent_logs?.length || 0} 个智能体协同工作</span>
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            ${(plan.agent_logs || []).map(log => `
+              <div class="p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-100">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-gray-700">${log.agent}</span>
+                  <span class="text-[10px] text-green-600 font-medium">✅ ${log.duration}s</span>
+                </div>
+                <div class="text-[11px] text-gray-500 space-y-1">
+                  ${Object.entries(log.output || {}).slice(0, 2).map(([k, v]) => `
+                    <div><span class="text-gray-400">${k}:</span> <span class="font-medium">${Array.isArray(v) ? v.join(', ') : v}</span></div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- 核心价值展示：循证依据 -->
+        <div class="card p-5 mb-6">
+          <h3 class="text-base font-semibold mb-4 flex items-center gap-2">
+            <i data-lucide="book-open" class="w-5 h-5 text-teal-500"></i>
+            循证依据
+            <span class="text-xs text-gray-400 font-normal ml-2">
+              基于 ${plan.evidence_list?.length || 0} 条高质量医学证据
+            </span>
+          </h3>
+          <div class="space-y-3">
+            ${(plan.evidence_list || []).map(ev => `
+              <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <span class="evidence-tag grade-${ev.grade.toLowerCase()}">${ev.grade}级</span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-800 truncate">${ev.title}</p>
+                  <p class="text-xs text-gray-500 mt-1 line-clamp-2">${ev.abstract || '无摘要'}</p>
+                  <div class="flex items-center gap-2 mt-2">
+                    <span class="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded">${ev.source}</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+            ${(!plan.evidence_list || plan.evidence_list.length === 0) ? '<p class="text-sm text-gray-400 text-center py-4">暂无循证证据</p>' : ''}
+          </div>
+        </div>
+
+        <!-- 原有随访计划标题 -->
+        <div class="card p-5 mb-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-semibold flex items-center gap-2">
+                <i data-lucide="calendar-range" class="w-5 h-5 text-teal-500" aria-hidden="true"></i>个性化随访计划
+              </h2>
+              <p class="text-xs text-gray-400 mt-1">
+                基于 ${plan.evidence_stats.total_results} 条循证证据生成 | 引用 ${plan.evidence_stats.cited} 条高质量证据 | 生成时间: ${plan.generated_at}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="evidence-tag grade-a">A级 指南</span>
+              <span class="evidence-tag grade-b">B级 RCT</span>
+              <span class="evidence-tag grade-c">C级 观察研究</span>
+              <span class="evidence-tag grade-e">E级 说明书</span>
+            </div>
+          </div>
+        </div>
+        <div class="space-y-0">`;
+
+      plan.timeline.forEach((day, idx) => {
+        const isLast = idx === plan.timeline.length - 1;
+        const dotClass = dotColors[day.color] || dotColors.medical;
+
+        html += `
+          <div class="relative pl-16 ${isLast ? 'pb-0' : 'pb-8'}">
+            ${isLast ? '' : '<div class="timeline-line"></div>'}
+            <div class="timeline-dot absolute left-0 top-0 ${dotClass}">
+              <i data-lucide="${day.icon}" class="w-4 h-4" aria-hidden="true"></i>
+            </div>
+            <div class="card p-5">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-base">${day.label}</h3>
+                <span class="text-xs text-gray-400">${day.date}</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-${Math.min(day.tasks.length, 3)} gap-4">`;
+
+        day.tasks.forEach(task => {
+          html += `
+                <div class="p-4 rounded-lg border task-color-${task.color}">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="${task.icon}" class="w-4 h-4 text-${task.color}-500" aria-hidden="true"></i>
+                    <span class="text-xs font-semibold text-${task.color}-700">${task.title}</span>
+                  </div>
+                  <p class="text-xs text-gray-600 leading-relaxed mb-2">${task.description.replace(/\n/g, '<br/>')}</p>
+                  <div class="flex items-center gap-1.5">
+                    ${task.evidence_grades.map((g, i) => `<span class="evidence-tag ${gradeClass[g]}">${g}级</span>`).join('')}
+                    ${task.evidence_refs.map(r => `<span class="text-[10px] text-gray-400">${r}</span>`).join('')}
+                  </div>
+                </div>`;
+        });
+
+        html += `</div></div></div>`;
+      });
+
+      html += `</div>`;
+      el.innerHTML = html;
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    // ============================================================================
+    // Page 3: 对话随访
+    // ============================================================================
+    function renderMarkdown(text) {
+      return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br/>');
+    }
+
+    function addChatMessage(role, content, alertLevel, evidenceRefs, evidenceGrades) {
+      const container = document.getElementById('chat-messages');
+      const gradeClass = { A: 'grade-a', B: 'grade-b', C: 'grade-c', D: 'grade-d', E: 'grade-e' };
+      const alertClass = { green: 'alert-green', yellow: 'alert-yellow', red: 'alert-red' };
+      const alertLabels = { green: '指标正常', yellow: '需要关注', red: '紧急处理' };
+      const dotColor = { green: 'bg-green-500', yellow: 'bg-yellow-500', red: 'bg-red-500' };
+
+      let html = '';
+      if (role === 'user') {
+        html = `<div class="flex gap-3 justify-end"><div class="chat-bubble chat-user"><p>${renderMarkdown(content)}</p></div></div>`;
+      } else {
+        html = `<div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
+            <i data-lucide="heart-pulse" class="w-4 h-4 text-teal-600" aria-hidden="true"></i>
+          </div>
+          <div class="chat-bubble chat-ai">`;
+
+        if (alertLevel && alertLevel !== 'green') {
+          html += `<div class="flex items-center gap-2 mb-2">
+            <span class="alert-badge ${alertClass[alertLevel]} text-[10px] py-0.5 px-2">
+              <span class="w-1.5 h-1.5 rounded-full ${dotColor[alertLevel]}"></span>${alertLabels[alertLevel]}
+            </span>
+          </div>`;
+        } else if (alertLevel === 'green') {
+          html += `<div class="flex items-center gap-2 mb-2">
+            <span class="alert-badge alert-green text-[10px] py-0.5 px-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>指标正常
+            </span>
+          </div>`;
+        }
+
+        html += `<p>${renderMarkdown(content)}</p>`;
+
+        if (evidenceRefs && evidenceRefs.length > 0) {
+          const bgColor = alertLevel === 'yellow' ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100';
+          const textColor = alertLevel === 'yellow' ? 'text-amber-700' : 'text-blue-700';
+          html += `<div class="mt-3 p-2.5 ${bgColor} rounded-lg border"><p class="text-[10px] ${textColor}">
+            <i data-lucide="book-open" class="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true"></i><strong>循证来源</strong>: ${evidenceRefs[0]}`;
+          if (evidenceGrades && evidenceGrades.length > 0) {
+            html += ` <span class="evidence-tag ${gradeClass[evidenceGrades[0]]} ml-1">${evidenceGrades[0]}级</span>`;
+          }
+          html += `</p></div>`;
+        }
+
+        html += `<p class="mt-3 text-[10px] text-gray-400 border-t border-gray-200 pt-2">*以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*</p></div></div>`;
+      }
+
+      container.insertAdjacentHTML('beforeend', html);
+      container.scrollTop = container.scrollHeight;
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    function updateChatAlert(alertLevel) {
+      const el = document.getElementById('chat-alert');
+      const config = {
+        green: { cls: 'alert-green', dot: 'bg-green-500', text: '状态正常' },
+        yellow: { cls: 'alert-yellow', dot: 'bg-yellow-500', text: '需要关注' },
+        red: { cls: 'alert-red', dot: 'bg-red-500', text: '紧急处理' },
+      };
+      const c = config[alertLevel] || config.green;
+      el.className = 'alert-badge ' + c.cls;
+      el.innerHTML = `<span class="w-2 h-2 rounded-full ${c.dot}"></span>${c.text}`;
+    }
+
+    function updateTrendPanel(vitalRecords) {
+      if (!vitalRecords || vitalRecords.length === 0) return;
+      const el = document.getElementById('trend-panel');
+      const grouped = {};
+      vitalRecords.forEach(r => {
+        if (!grouped[r.type]) grouped[r.type] = [];
+        grouped[r.type].push(r);
+      });
+
+      const colors = { '空腹血糖': { bg: 'bg-green-50', border: 'border-green-100', text: 'text-green', bar: 'bg-green' } };
+      let html = `<h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+        <i data-lucide="trending-up" class="w-4 h-4 text-teal-500" aria-hidden="true"></i>指标趋势</h3><div class="space-y-3">`;
+
+      Object.entries(grouped).forEach(([type, records]) => {
+        const last = records[records.length - 1];
+        const color = type.includes('血糖') ? 'green' : (type.includes('血压') ? 'amber' : 'gray');
+        html += `<div class="p-3 ${color}-50 rounded-lg border border-${color}-100">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-${color}-700">${type}</span>
+            <span class="text-xs text-${color}-600 font-semibold">${last.value}</span>
+          </div>
+          <div class="flex gap-0.5 mt-2">${records.map(() => `<div class="h-1 flex-1 rounded bg-${color}-400"></div>`).join('')}</div>
+        </div>`;
+      });
+
+      html += '</div>';
+      el.innerHTML = html;
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    function updateAlertHistory(alertLevel, content) {
+      alertRecords.push({ level: alertLevel, content: content, time: new Date().toLocaleTimeString() });
+      const el = document.getElementById('alert-history');
+      const dotColor = { green: 'bg-green-500', yellow: 'bg-yellow-500', red: 'bg-red-500' };
+      const bgColor = { green: 'bg-green-50', yellow: 'bg-amber-50', red: 'bg-red-50' };
+      const textColor = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-700' };
+
+      el.innerHTML = alertRecords.map(r => `
+        <div class="flex items-center gap-2 text-xs p-2 ${bgColor[r.level]} rounded-md">
+          <span class="w-2 h-2 rounded-full ${dotColor[r.level]}"></span>
+          <span class="${textColor[r.level]}">${r.content}</span>
+        </div>`).join('');
+    }
+
+    function updateEvidenceList(refs, grades) {
+      if (!refs || refs.length === 0) return;
+      const gradeClass = { A: 'grade-a', B: 'grade-b', C: 'grade-c', D: 'grade-d', E: 'grade-e' };
+      refs.forEach((ref, i) => {
+        if (allEvidence.some(e => e.title === ref)) return;
+        allEvidence.push({ title: ref, grade: grades?.[i] || 'C' });
+      });
+
+      const el = document.getElementById('evidence-list');
+      el.innerHTML = allEvidence.map(e => `
+        <div class="p-2.5 bg-gray-50 rounded-lg">
+          <div class="flex items-center gap-1.5 mb-1"><span class="evidence-tag ${gradeClass[e.grade]} text-[9px]">${e.grade}级</span></div>
+          <p class="text-[10px] text-gray-600 leading-relaxed">${e.title}</p>
+        </div>`).join('');
+      setTimeout(safeCreateIcons, 50);
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      input.value = '';
+      addChatMessage('user', msg);
+
+      const btn = document.getElementById('btn-send');
+      btn.disabled = true;
+
+      try {
+        const res = await apiCall('/api/chat', { session_id: sessionId, message: msg });
+        if (!res.success) { alert(res.error || '发送失败'); return; }
+
+        const data = res.data;
+        addChatMessage('assistant', data.reply, data.alert_level, data.evidence_refs, data.evidence_grades);
+        updateChatAlert(data.alert_level);
+        updateAlertHistory(data.alert_level, msg.substring(0, 20));
+        updateTrendPanel(data.vital_records);
+        updateEvidenceList(data.evidence_refs, data.evidence_grades);
+      } catch (e) {
+        alert('请求失败: ' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

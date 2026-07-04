@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>循证随访管家 - FollowUp Pilot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f5f7fa; 
+      color: #1a202c;
+      line-height: 1.6;
+    }
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 1rem; }
+    
+    /* Header */
+    .header { 
+      background: white; 
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .header-inner { 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      height: 4rem;
+      padding: 0 1rem;
+    }
+    .logo { display: flex; align-items: center; gap: 0.75rem; }
+    .logo-icon { 
+      width: 2.25rem; 
+      height: 2.25rem; 
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+    .logo-text h1 { font-size: 1rem; font-weight: 700; color: #1a202c; }
+    .logo-text p { font-size: 0.625rem; color: #9ca3af; margin-top: -0.125rem; }
+    
+    .nav { display: flex; gap: 0.5rem; }
+    .nav-btn { 
+      padding: 0.5rem 1rem; 
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: all 0.2s;
+    }
+    .nav-btn:hover { background: #f0fdfa; color: #14b8a6; }
+    .nav-btn.active { background: #14b8a6; color: white; }
+    
+    .status-badge { 
+      display: inline-flex; 
+      align-items: center; 
+      gap: 0.5rem;
+      padding: 0.375rem 0.875rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #dcfce7;
+      color: #166534;
+    }
+    .status-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #22c55e; }
+    
+    /* Disclaimer */
+    .disclaimer { 
+      background: #fef3c7; 
+      border: 1px solid #fde68a;
+      color: #92400e;
+      text-align: center;
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+    }
+    
+    /* Main Content */
+    .main { padding: 1.5rem 1rem; }
+    .grid { display: grid; gap: 1.5rem; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .col-span-2 { grid-column: span 2; }
+    
+    @media (max-width: 1024px) {
+      .grid-3 { grid-template-columns: 1fr; }
+      .col-span-2 { grid-column: span 1; }
+    }
+    
+    /* Cards */
+    .card { 
+      background: white; 
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .card-title { 
+      font-size: 1.125rem; 
+      font-weight: 600; 
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    /* Textarea */
+    textarea { 
+      width: 100%; 
+      min-height: 16rem;
+      padding: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      resize: vertical;
+      font-family: inherit;
+    }
+    textarea:focus { outline: none; border-color: #14b8a6; }
+    
+    /* Buttons */
+    .btn { 
+      padding: 0.625rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary { 
+      background: #14b8a6; 
+      color: white;
+      box-shadow: 0 2px 6px rgba(20, 184, 166, 0.25);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35); }
+    .btn-secondary { 
+      background: white; 
+      color: #1a202c;
+      border: 1px solid #e5e7eb;
+    }
+    .btn-secondary:hover { border-color: #14b8a6; color: #14b8a6; }
+    
+    /* Placeholder */
+    .placeholder { 
+      text-align: center; 
+      padding: 2rem;
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+    
+    /* Flex utilities */
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 0.5rem; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-4 { gap: 1rem; }
+    .mt-4 { margin-top: 1rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .text-sm { font-size: 0.875rem; }
+    .text-xs { font-size: 0.75rem; }
+    .text-gray-400 { color: #9ca3af; }
+    .font-medium { font-weight: 500; }
+  </style>
+</head>
+<body>
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    ⚠️ 本系统仅供健康参考，不构成医疗建议。所有随访计划基于循证文献自动生成，请遵医嘱执行。
+  </div>
+  
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <div class="logo">
+        <div class="logo-icon">❤</div>
+        <div class="logo-text">
+          <h1>循证随访管家</h1>
+          <p>FollowUp Pilot</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active">📄 上传出院小结</button>
+        <button class="nav-btn">📅 随访计划</button>
+        <button class="nav-btn"> 对话随访</button>
+      </nav>
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        已连接
+      </div>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="main container">
+    <div class="grid grid-3">
+      <!-- Left Column -->
+      <div class="col-span-2">
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="card-title">📄 出院小结</h2>
+            <button class="btn btn-secondary text-xs">✨ 加载示例</button>
+          </div>
+          <textarea placeholder="请粘贴出院小结全文..."></textarea>
+          <div class="flex items-center justify-between mt-4">
+            <p class="text-xs text-gray-400">支持纯文本粘贴，AI 将自动提取结构化信息</p>
+            <button class="btn btn-primary">🔍 AI 解析出院小结</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Right Column -->
+      <div>
+        <div class="card mb-4">
+          <h3 class="card-title"> 患者画像</h3>
+          <div class="placeholder">
+            请先粘贴出院小结文本，点击"AI 解析出院小结"后显示患者风险评估
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="card-title"> 循证检索统计</h3>
+          <div class="placeholder">
+            解析后将显示从 KnowS 医学知识库检索的证据数量和质量分布
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

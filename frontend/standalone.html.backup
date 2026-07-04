@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>循证随访管家 - FollowUp Pilot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+    header { text-align: center; color: white; padding: 40px 0; }
+    h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+    .subtitle { opacity: 0.9; font-size: 1.1rem; }
+    .card { background: white; border-radius: 16px; padding: 30px; margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .card h2 { color: #667eea; margin-bottom: 20px; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+    textarea { width: 100%; height: 250px; padding: 20px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 15px; resize: vertical; transition: border-color 0.3s; }
+    textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+    .btn-group { display: flex; gap: 15px; margin-top: 20px; }
+    button { flex: 1; padding: 15px 30px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .btn-secondary:hover { background: #e0e0e0; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+    .result { background: #f8f9fa; padding: 25px; border-radius: 12px; margin-top: 25px; display: none; animation: fadeIn 0.5s; }
+    .result.show { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; margin: 3px; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-info { background: #cce5ff; color: #004085; }
+    .info-row { margin-bottom: 20px; }
+    .info-row strong { display: block; margin-bottom: 8px; color: #555; font-size: 14px; }
+    .med-item, .vital-item { background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #667eea; }
+    .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .loading-overlay.active { display: flex; }
+    .loading-box { background: white; padding: 40px; border-radius: 16px; text-align: center; }
+    .spinner { width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .status-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 20px; font-size: 14px; }
+    .status-ok { background: #d4edda; color: #155724; }
+    .status-error { background: #f8d7da; color: #721c24; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .status-ok .dot { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</head>
+<body>
+  <div class="loading-overlay" id="loading">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p id="loading-text">正在处理...</p>
+    </div>
+  </div>
+
+  <header>
+    <h1>🏥 循证随访管家</h1>
+    <p class="subtitle">FollowUp Pilot - AI 驱动的出院随访系统 | StepFun LLM + KnowS 循证检索</p>
+  </header>
+
+  <div class="container">
+    <!-- API 状态 -->
+    <div class="card">
+      <h2>🔌 系统状态</h2>
+      <div id="api-status">
+        <span class="status-indicator status-error"><span class="dot"></span>检查中...</span>
+      </div>
+    </div>
+
+    <!-- 上传页面 -->
+    <div class="card">
+      <h2>📄 上传出院小结</h2>
+      <textarea id="summary-text" placeholder="请粘贴出院小结文本..."></textarea>
+      <div class="btn-group">
+        <button class="btn-secondary" onclick="loadSample()">📋 加载示例</button>
+        <button class="btn-primary" onclick="parseSummary()" id="btn-parse"> AI 解析出院小结</button>
+      </div>
+      
+      <div id="parse-result" class="result">
+        <h2 style="margin-bottom: 20px;">✅ 解析结果</h2>
+        <div id="parsed-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:8080';
+
+    function showLoading(text) {
+      document.getElementById('loading-text').textContent = text || '正在处理...';
+      document.getElementById('loading').classList.add('active');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading').classList.remove('active');
+    }
+
+    function loadSample() {
+      document.getElementById('summary-text').value = `患者张三，男，65岁。入院日期2026-06-20，出院日期2026-06-28。
+
+诊断：
+1. 2型糖尿病
+2. 高血压3级（极高危）
+3. 冠状动脉粥样硬化性心脏病
+
+用药方案：
+- 二甲双胍 500mg bid（餐后）
+- 氨氯地平 5mg qd（晨起）
+- 阿托伐他汀 20mg qn（睡前）
+- 阿司匹林肠溶片 100mg qd
+
+出院时生命体征：
+- 空腹血糖：7.8 mmol/L（参考范围：4.4-7.0）
+- 血压：145/92 mmHg（参考范围：<140/90）
+- 糖化血红蛋白：5.2%（参考范围：4.0-6.0）`;
+    }
+
+    async function parseSummary() {
+      const text = document.getElementById('summary-text').value.trim();
+      if (!text) {
+        alert('请输入出院小结文本');
+        return;
+      }
+
+      const btn = document.getElementById('btn-parse');
+      btn.disabled = true;
+      showLoading('AI 正在解析出院小结...');
+
+      try {
+        const res = await fetch(API_BASE + '/api/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          showParseResult(data.data);
+        } else {
+          alert('解析失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('请求失败: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        hideLoading();
+      }
+    }
+
+    function showParseResult(parsed) {
+      const resultDiv = document.getElementById('parse-result');
+      const contentDiv = document.getElementById('parsed-content');
+      
+      let html = '';
+      
+      // 患者信息
+      html += '<div class="info-row"><strong>👤 患者信息</strong>';
+      html += '<span class="badge badge-info">' + parsed.patient_name + '</span>';
+      html += '<span class="badge badge-info">' + parsed.gender + '</span>';
+      html += '<span class="badge badge-info">' + parsed.age + '岁</span>';
+      html += '<span class="badge badge-info">入院: ' + parsed.admission_date + '</span>';
+      html += '<span class="badge badge-info">出院: ' + parsed.discharge_date + '</span></div>';
+      
+      // 诊断
+      html += '<div class="info-row"><strong> 诊断</strong><br/>';
+      parsed.diagnoses.forEach(function(d) {
+        html += '<span class="badge badge-warning">' + d + '</span>';
+      });
+      html += '</div>';
+      
+      // 用药方案
+      html += '<div class="info-row"><strong>💊 用药方案</strong><br/>';
+      parsed.medications.forEach(function(m) {
+        html += '<div class="med-item">';
+        html += '<strong>' + m.name + '</strong> ' + m.dosage + '<br/>';
+        html += '<small>' + m.frequency + ' (' + m.timing + ')</small>';
+        html += '</div>';
+      });
+      html += '</div>';
+      
+      // 生命体征
+      html += '<div class="info-row"><strong>📊 生命体征</strong><br/>';
+      parsed.vital_signs.forEach(function(v) {
+        var statusClass = v.status === 'normal' ? 'badge-success' : 'badge-warning';
+        var statusText = v.status === 'normal' ? '正常' : '异常';
+        html += '<div class="vital-item">';
+        html += '<strong>' + v.name + '</strong>: ' + v.value + ' ' + v.unit;
+        html += ' <span class="badge ' + statusClass + '">' + statusText + '</span>';
+        html += '<br/><small>参考范围: ' + v.reference_range + '</small>';
+        html += '</div>';
+      });
+      html += '</div>';
+      
+      // 置信度
+      html += '<div class="info-row"><strong>🎯 解析置信度</strong><br/>';
+      html += '<span class="badge badge-success">' + (parsed.confidence * 100).toFixed(1) + '%</span></div>';
+      
+      contentDiv.innerHTML = html;
+      resultDiv.classList.add('show');
+    }
+
+    async function checkApiStatus() {
+      const statusDiv = document.getElementById('api-status');
+      try {
+        const res = await fetch(API_BASE + '/api/health');
+        const data = await res.json();
+        
+        if (data.status === 'ok') {
+          statusDiv.innerHTML = '<span class="status-indicator status-ok"><span class="dot"></span>已连接后端 | LLM: StepFun step-3.7-flash | KnowS: 就绪</span>';
+        } else {
+          statusDiv.innerHTML = '<span class="status-indicator status-error"><span class="dot"></span>API 异常</span>';
+        }
+      } catch (e) {
+        statusDiv.innerHTML = '<span class="status-indicator status-error"><span class="dot"></span>未连接后端</span>';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+      checkApiStatus();
+      loadSample();
+    });
+  </script>
+</body>
+</html>

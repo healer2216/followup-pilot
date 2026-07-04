@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>循证随访管家 - FollowUp Pilot</title>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" />
+  <link rel="preconnect" href="https://unpkg.com" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            medical: {
+              50: 'oklch(0.97 0.02 195)',
+              100: 'oklch(0.93 0.04 195)',
+              200: 'oklch(0.86 0.08 195)',
+              300: 'oklch(0.76 0.12 195)',
+              400: 'oklch(0.66 0.15 195)',
+              500: 'oklch(0.56 0.16 195)',
+              600: 'oklch(0.48 0.14 195)',
+              700: 'oklch(0.40 0.11 195)',
+              800: 'oklch(0.33 0.08 195)',
+              900: 'oklch(0.26 0.05 195)',
+            },
+            alert: {
+              green: oklch(0.72 0.19 145),
+              yellow: oklch(0.80 0.16 85),
+              red: oklch(0.63 0.22 25),
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    :root {
+      --bg-primary: oklch(0.98 0.005 200);
+      --bg-card: oklch(1 0 0);
+      --text-primary: oklch(0.20 0.02 200);
+      --text-secondary: oklch(0.45 0.02 200);
+      --border: oklch(0.90 0.01 200);
+      --accent: oklch(0.56 0.16 195);
+      --accent-light: oklch(0.93 0.04 195);
+    }
+    body { background: var(--bg-primary); color: var(--text-primary); }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px oklch(0 0 0 / 0.04), 0 4px 12px oklch(0 0 0 / 0.03);
+      transition: box-shadow 200ms ease, transform 200ms ease;
+    }
+    .card:hover { box-shadow: 0 2px 8px oklch(0 0 0 / 0.06), 0 8px 24px oklch(0 0 0 / 0.05); }
+    .nav-item {
+      position: relative;
+      padding: 0.625rem 1.25rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      font-size: 0.875rem;
+      transition: background 200ms ease, color 200ms ease;
+      cursor: pointer;
+    }
+    h1, h2, h3 { text-wrap: balance; }
+    button, a, .nav-item { touch-action: manipulation; }
+    .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .nav-item:hover { background: var(--accent-light); color: var(--accent); }
+    .nav-item.active {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 2px 8px oklch(0.56 0.16 195 / 0.3);
+    }
+    .timeline-line {
+      position: absolute;
+      left: 1.25rem;
+      top: 2.5rem;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent), oklch(0.85 0.04 195));
+    }
+    .timeline-dot {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1.125rem;
+      z-index: 1;
+    }
+    .evidence-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.025em;
+    }
+    .grade-a { background: oklch(0.90 0.06 145); color: oklch(0.35 0.12 145); }
+    .grade-b { background: oklch(0.92 0.05 195); color: oklch(0.35 0.10 195); }
+    .grade-c { background: oklch(0.94 0.04 85); color: oklch(0.45 0.10 85); }
+    .grade-d { background: oklch(0.94 0.03 45); color: oklch(0.50 0.08 45); }
+    .grade-e { background: oklch(0.94 0.02 0); color: oklch(0.50 0.06 0); }
+    .chat-bubble {
+      max-width: 80%;
+      padding: 0.875rem 1.125rem;
+      border-radius: 1rem;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      animation: fadeIn 300ms ease-out;
+    }
+    .chat-ai {
+      background: oklch(0.96 0.02 200);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 0.25rem;
+      align-self: flex-start;
+    }
+    .chat-user {
+      background: var(--accent);
+      color: white;
+      border-bottom-right-radius: 0.25rem;
+      align-self: flex-end;
+    }
+    .alert-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.375rem 0.875rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .alert-green { background: oklch(0.92 0.06 145); color: oklch(0.30 0.12 145); }
+    .alert-yellow { background: oklch(0.94 0.08 85); color: oklch(0.40 0.12 85); }
+    .alert-red { background: oklch(0.92 0.06 25); color: oklch(0.40 0.15 25); }
+    .risk-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.625rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .risk-high { background: oklch(0.94 0.06 25); color: oklch(0.40 0.15 25); }
+    .risk-medium { background: oklch(0.94 0.08 85); color: oklch(0.40 0.12 85); }
+    .risk-low { background: oklch(0.92 0.06 145); color: oklch(0.30 0.12 145); }
+    .page { display: none; }
+    .page.active { display: block; animation: fadeIn 350ms ease-out; }
+    /* Skip link for accessibility */
+    .skip-link {
+      position: absolute;
+      top: -100%;
+      left: 0;
+      background: var(--accent);
+      color: white;
+      padding: 0.5rem 1rem;
+      z-index: 100;
+      font-size: 0.875rem;
+      border-radius: 0 0 0.5rem 0;
+    }
+    .skip-link:focus { top: 0; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .chat-bubble, .page.active { animation: none; }
+      .card, .nav-item, .btn-primary, .btn-secondary, textarea, input { transition: none; }
+    }
+    .disclaimer-bar {
+      background: oklch(0.96 0.03 85);
+      border: 1px solid oklch(0.88 0.06 85);
+      color: oklch(0.40 0.10 85);
+    }
+    textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px oklch(0.56 0.16 195 / 0.15); }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      padding: 0.625rem 1.5rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: transform 200ms ease, box-shadow 200ms ease;
+      box-shadow: 0 2px 6px oklch(0.56 0.16 195 / 0.25);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px oklch(0.56 0.16 195 / 0.35); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn-secondary {
+      background: white;
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      font-weight: 500;
+      font-size: 0.8rem;
+      transition: border-color 200ms ease, color 200ms ease;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-secondary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .stat-card {
+      text-align: center;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      background: oklch(0.97 0.01 200);
+    }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.125rem; }
+  </style>
+</head>
+<body class="font-sans min-h-screen">
+
+  <!-- Skip Link -->
+  <a href="#main-content" class="skip-link">跳转到主要内容</a>
+
+  <!-- Disclaimer Banner -->
+  <div class="disclaimer-bar text-center py-2 px-4 text-xs" role="alert">
+    <i data-lucide="alert-triangle" class="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true"></i>
+    本系统仅供健康参考，不构成医疗建议。所有随访计划基于循证文献自动生成，请遵医嘱执行。
+  </div>
+
+  <!-- Header / Navigation -->
+  <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-medical-400 to-medical-600 flex items-center justify-center">
+            <i data-lucide="heart-pulse" class="w-5 h-5 text-white" aria-hidden="true"></i>
+          </div>
+          <div>
+            <h1 class="text-base font-bold text-gray-900 leading-tight">循证随访管家</h1>
+            <p class="text-[10px] text-gray-400 -mt-0.5">FollowUp Pilot</p>
+          </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="flex items-center gap-1.5">
+          <button class="nav-item active" onclick="switchPage('upload')" id="nav-upload" aria-label="上传出院小结">
+            <i data-lucide="file-text" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>
+            上传出院小结
+          </button>
+          <button class="nav-item" onclick="switchPage('plan')" id="nav-plan" aria-label="随访计划">
+            <i data-lucide="calendar-range" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>
+            随访计划
+          </button>
+          <button class="nav-item" onclick="switchPage('chat')" id="nav-chat" aria-label="对话随访">
+            <i data-lucide="message-circle" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>
+            对话随访
+          </button>
+        </nav>
+
+        <!-- Status -->
+        <div class="flex items-center gap-3">
+          <div class="alert-badge alert-green">
+            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            系统正常
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ==================== PAGE 1: Upload ==================== -->
+    <div id="page-upload" class="page active">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left: Text Input -->
+        <div class="lg:col-span-2">
+          <div class="card p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold flex items-center gap-2">
+                <i data-lucide="file-text" class="w-5 h-5 text-medical-500" aria-hidden="true"></i>
+                出院小结
+              </h2>
+              <button class="btn-secondary text-xs" onclick="loadSample()" aria-label="加载示例数据">
+                <i data-lucide="sparkles" class="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true"></i>
+                加载示例
+              </button>
+            </div>
+            <label for="discharge-text" class="sr-only">出院小结文本</label>
+            <textarea id="discharge-text" name="discharge-text" rows="16" autocomplete="off"
+              class="w-full border border-gray-200 rounded-lg p-4 text-sm leading-relaxed resize-none
+                     focus:border-medical-400 focus:ring-2 focus:ring-medical-100 transition-[border-color,box-shadow]"
+              placeholder="请粘贴出院小结全文…&#10;&#10;示例内容：&#10;患者张三，男，65岁，因多饮多尿3月入院…"></textarea>
+            <div class="flex items-center justify-between mt-4">
+              <p class="text-xs text-gray-400">支持纯文本粘贴，AI 将自动提取结构化信息</p>
+              <button class="btn-primary" onclick="parseSummary()" aria-label="AI 解析出院小结">
+                <i data-lucide="scan-search" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>
+                AI 解析出院小结
+              </button>
+            </div>
+          </div>
+
+          <!-- Parsed Result -->
+          <div class="card p-6 mt-6" id="parsed-result" style="display:none;">
+            <h3 class="text-base font-semibold mb-4 flex items-center gap-2">
+              <i data-lucide="check-circle-2" class="w-5 h-5 text-green-500" aria-hidden="true"></i>
+              解析结果
+              <span class="text-xs text-gray-400 font-normal ml-2">置信度 92%</span>
+            </h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <label class="text-xs text-gray-400 block mb-1">患者</label>
+                <p class="font-medium">张三，男，65岁</p>
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 block mb-1">住院时间</label>
+                <p class="font-medium">2026-06-20 至 2026-06-28</p>
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs text-gray-400 block mb-1">诊断</label>
+                <div class="flex flex-wrap gap-2">
+                  <span class="px-2.5 py-1 bg-medical-50 text-medical-700 rounded-md text-xs font-medium">2型糖尿病</span>
+                  <span class="px-2.5 py-1 bg-medical-50 text-medical-700 rounded-md text-xs font-medium">高血压3级</span>
+                </div>
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs text-gray-400 block mb-1">用药方案</label>
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-2 text-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-medical-400"></span>
+                    <span class="font-medium">二甲双胍</span>
+                    <span class="text-gray-400">500mg 每日两次 餐后</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-medical-400"></span>
+                    <span class="font-medium">氨氯地平</span>
+                    <span class="text-gray-400">5mg 每日一次 晨起</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-medical-400"></span>
+                    <span class="font-medium">阿托伐他汀</span>
+                    <span class="text-gray-400">20mg 每日一次 睡前</span>
+                  </div>
+                </div>
+              </div>
+              <div class="col-span-2">
+                <label class="text-xs text-gray-400 block mb-1">检验指标</label>
+                <div class="flex gap-4">
+                  <div class="stat-card flex-1">
+                    <div class="stat-value text-red-500">7.8</div>
+                    <div class="stat-label">空腹血糖 mmol/L</div>
+                  </div>
+                  <div class="stat-card flex-1">
+                    <div class="stat-value text-orange-500">145/92</div>
+                    <div class="stat-label">血压 mmHg</div>
+                  </div>
+                  <div class="stat-card flex-1">
+                    <div class="stat-value">5.2</div>
+                    <div class="stat-label">糖化血红蛋白 %</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-5 pt-4 border-t border-gray-100 flex justify-end">
+              <button class="btn-primary" onclick="switchPage('plan')">
+                <i data-lucide="wand-2" class="inline w-4 h-4 mr-1.5 -mt-0.5" aria-hidden="true"></i>
+                生成随访计划
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Patient Profile -->
+        <div class="lg:col-span-1">
+          <div class="card p-6">
+            <h3 class="text-base font-semibold mb-4 flex items-center gap-2">
+              <i data-lucide="user-circle" class="w-5 h-5 text-medical-500" aria-hidden="true"></i>
+              患者画像
+            </h3>
+            <div class="space-y-4">
+              <!-- Risk Level -->
+              <div class="p-3 rounded-lg bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-orange-700">整体风险等级</span>
+                  <span class="risk-tag risk-medium">
+                    <i data-lucide="alert-circle" class="w-3 h-3" aria-hidden="true"></i>
+                    中风险
+                  </span>
+                </div>
+              </div>
+
+              <!-- Risk Factors -->
+              <div>
+                <h4 class="text-xs font-medium text-gray-500 mb-2">风险因素</h4>
+                <div class="space-y-2">
+                  <div class="flex items-start gap-2 text-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1.5 flex-shrink-0"></span>
+                    <span>老年患者(65岁)，药物代谢减慢</span>
+                  </div>
+                  <div class="flex items-start gap-2 text-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1.5 flex-shrink-0"></span>
+                    <span>多药联用(3种)，注意药物相互作用</span>
+                  </div>
+                  <div class="flex items-start gap-2 text-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 flex-shrink-0"></span>
+                    <span>共病风险：糖尿病+高血压，心血管事件风险增加</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Special Attention -->
+              <div>
+                <h4 class="text-xs font-medium text-gray-500 mb-2">特殊注意事项</h4>
+                <div class="space-y-2">
+                  <div class="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded-md">
+                    <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-medical-500" aria-hidden="true"></i>
+                    跌倒预防
+                  </div>
+                  <div class="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded-md">
+                    <i data-lucide="pill" class="w-3.5 h-3.5 text-medical-500" aria-hidden="true"></i>
+                    定期药物审查
+                  </div>
+                  <div class="flex items-center gap-2 text-xs p-2 bg-gray-50 rounded-md">
+                    <i data-lucide="activity" class="w-3.5 h-3.5 text-medical-500" aria-hidden="true"></i>
+                    同时监测血糖和血压
+                  </div>
+                </div>
+              </div>
+
+              <!-- Medication Interactions -->
+              <div>
+                <h4 class="text-xs font-medium text-gray-500 mb-2">药物相互作用</h4>
+                <div class="p-2.5 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800">
+                  <i data-lucide="info" class="inline w-3.5 h-3.5 mr-1 -mt-0.5" aria-hidden="true"></i>
+                  未发现高风险药物组合，但建议定期审查多药联用方案
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Evidence Stats -->
+          <div class="card p-6 mt-6">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+              <i data-lucide="database" class="w-4 h-4 text-medical-500" aria-hidden="true"></i>
+              循证检索统计
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="stat-card">
+                <div class="stat-value text-lg">6</div>
+                <div class="stat-label">检索查询</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value text-lg">35</div>
+                <div class="stat-label">检索结果</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value text-lg">8</div>
+                <div class="stat-label">重排序后</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value text-lg">5</div>
+                <div class="stat-label">引用注入</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PAGE 2: Follow-up Plan ==================== -->
+    <div id="page-plan" class="page">
+      <!-- Plan Header -->
+      <div class="card p-5 mb-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+              <i data-lucide="calendar-range" class="w-5 h-5 text-medical-500" aria-hidden="true"></i>
+              个性化随访计划
+            </h2>
+            <p class="text-xs text-gray-400 mt-1">
+              基于 35 条循证证据生成 | 引用 5 条高质量证据 | 生成时间: 2026-07-01
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="evidence-tag grade-a">A级 指南</span>
+            <span class="evidence-tag grade-b">B级 RCT</span>
+            <span class="evidence-tag grade-c">C级 观察研究</span>
+            <span class="evidence-tag grade-e">E级 说明书</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="space-y-0">
+
+        <!-- Day 1 -->
+        <div class="relative pl-16 pb-8">
+          <div class="timeline-line"></div>
+          <div class="timeline-dot absolute left-0 top-0 bg-medical-100 text-medical-600 border-2 border-medical-300">
+            <i data-lucide="sunrise" class="w-4 h-4" aria-hidden="true"></i>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-base">出院第 1 天</h3>
+              <span class="text-xs text-gray-400">2026-06-28</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Task: Medication -->
+              <div class="p-4 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="pill" class="w-4 h-4 text-blue-500" aria-hidden="true"></i>
+                  <span class="text-xs font-semibold text-blue-700">按时服药</span>
+                </div>
+                <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                  二甲双胍 500mg 早晚餐后各一次<br/>
+                  氨氯地平 5mg 晨起一次<br/>
+                  阿托伐他汀 20mg 睡前一次
+                </p>
+                <div class="flex items-center gap-1.5">
+                  <span class="evidence-tag grade-e">E级</span>
+                  <span class="text-[10px] text-gray-400">盐酸二甲双胍片说明书</span>
+                </div>
+              </div>
+              <!-- Task: Monitoring -->
+              <div class="p-4 rounded-lg bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="activity" class="w-4 h-4 text-emerald-500" aria-hidden="true"></i>
+                  <span class="text-xs font-semibold text-emerald-700">监测指标</span>
+                </div>
+                <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                  空腹血糖 + 餐后2h血糖<br/>
+                  血压（晨起 + 睡前）<br/>
+                  目标: 空腹 4.4-7.0 mmol/L
+                </p>
+                <div class="flex items-center gap-1.5">
+                  <span class="evidence-tag grade-a">A级</span>
+                  <span class="text-[10px] text-gray-400">中国2型糖尿病防治指南(2020)</span>
+                </div>
+              </div>
+              <!-- Task: Diet -->
+              <div class="p-4 rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="utensils" class="w-4 h-4 text-amber-500" aria-hidden="true"></i>
+                  <span class="text-xs font-semibold text-amber-700">饮食管理</span>
+                </div>
+                <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                  低盐低脂饮食<br/>
+                  控制碳水摄入，少食多餐<br/>
+                  避免高糖饮料和精制食品
+                </p>
+                <div class="flex items-center gap-1.5">
+                  <span class="evidence-tag grade-a">A级</span>
+                  <span class="text-[10px] text-gray-400">高血压患者饮食管理指南</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Day 3 -->
+        <div class="relative pl-16 pb-8">
+          <div class="timeline-line"></div>
+          <div class="timeline-dot absolute left-0 top-0 bg-emerald-100 text-emerald-600 border-2 border-emerald-300">
+            <i data-lucide="stethoscope" class="w-4 h-4" aria-hidden="true"></i>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-base">出院第 3 天</h3>
+              <span class="text-xs text-gray-400">2026-06-30</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 rounded-lg bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-100">
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500" aria-hidden="true"></i>
+                  <span class="text-xs font-semibold text-rose-700">症状自查</span>
+                </div>
+                <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                  注意有无低血糖症状：心慌、出汗、手抖<br/>
+                  注意有无体位性低血压：起身头晕
+                </p>
+                <div class="flex items-center gap-1.5">
+                  <span class="evidence-tag grade-c">C级</span>
+                  <span class="text-[10px] text-gray-400">老年糖尿病患者低血糖风险研究</span>
+                </div>
+              </div>
+              <div class="p-4 rounded-lg bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100">
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="footprints" class="w-4 h-4 text-violet-500" aria-hidden="true"></i>
+                  <span class="text-xs font-semibold text-violet-700">活动建议</span>
+                </div>
+                <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                  餐后30分钟散步15-20分钟<br/>
+                  避免剧烈运动，注意防跌倒<br/>
+                  运动前后监测血糖
+                </p>
+                <div class="flex items-center gap-1.5">
+                  <span class="evidence-tag grade-b">B级</span>
+                  <span class="text-[10px] text-gray-400">糖尿病运动管理RCT研究</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Week 1 -->
+        <div class="relative pl-16 pb-8">
+          <div class="timeline-line"></div>
+          <div class="timeline-dot absolute left-0 top-0 bg-amber-100 text-amber-600 border-2 border-amber-300">
+            <i data-lucide="calendar" class="w-4 h-4" aria-hidden="true"></i>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-base">出院第 1 周</h3>
+              <span class="text-xs text-gray-400">2026-07-04</span>
+            </div>
+            <div class="p-4 rounded-lg bg-gradient-to-br from-cyan-50 to-sky-50 border border-cyan-100">
+              <div class="flex items-center gap-2 mb-2">
+                <i data-lucide="clipboard-check" class="w-4 h-4 text-cyan-500" aria-hidden="true"></i>
+                <span class="text-xs font-semibold text-cyan-700">一周回顾</span>
+              </div>
+              <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                回顾本周血糖/血压记录，评估药物耐受情况<br/>
+                如出现持续头晕、心悸，请联系随访助手或提前就诊
+              </p>
+              <div class="flex items-center gap-1.5">
+                <span class="evidence-tag grade-a">A级</span>
+                <span class="text-[10px] text-gray-400">中国2型糖尿病防治指南(2020)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Week 2 -->
+        <div class="relative pl-16 pb-8">
+          <div class="timeline-dot absolute left-0 top-0 bg-medical-100 text-medical-600 border-2 border-medical-300">
+            <i data-lucide="hospital" class="w-4 h-4" aria-hidden="true"></i>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-base">出院第 2 周 — 门诊复查</h3>
+              <span class="text-xs text-gray-400">2026-07-11</span>
+            </div>
+            <div class="p-4 rounded-lg bg-gradient-to-br from-medical-50 to-blue-50 border border-medical-100">
+              <div class="flex items-center gap-2 mb-2">
+                <i data-lucide="stethoscope" class="w-4 h-4 text-medical-500" aria-hidden="true"></i>
+                <span class="text-xs font-semibold text-medical-700">内分泌科门诊复查</span>
+              </div>
+              <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                复查项目：糖化血红蛋白(HbA1c)、肝肾功能、血脂<br/>
+                评估药物疗效，必要时调整方案
+              </p>
+              <div class="flex items-center gap-1.5">
+                <span class="evidence-tag grade-a">A级</span>
+                <span class="text-[10px] text-gray-400">出院后2-4周建议首次门诊随访 — 中国2型糖尿病防治指南</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== PAGE 3: Chat ==================== -->
+    <div id="page-chat" class="page">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        <!-- Chat Area -->
+        <div class="lg:col-span-3">
+          <div class="card flex flex-col" style="height: 70vh;">
+            <!-- Chat Header -->
+            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-medical-100 flex items-center justify-center">
+                  <i data-lucide="heart-pulse" class="w-4 h-4 text-medical-600" aria-hidden="true"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-semibold">随访助手</h3>
+                  <p class="text-[10px] text-gray-400">专业随访护士 | 循证驱动</p>
+                </div>
+              </div>
+              <div class="alert-badge alert-green" id="chat-alert">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                状态正常
+              </div>
+            </div>
+
+            <!-- Messages -->
+            <div class="flex-1 overflow-y-auto p-5 space-y-4" id="chat-messages">
+              <!-- AI Welcome -->
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-medical-100 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="heart-pulse" class="w-4 h-4 text-medical-600" aria-hidden="true"></i>
+                </div>
+                <div class="chat-bubble chat-ai">
+                  <p>您好，张先生！我是您的随访助手小循。</p>
+                  <p class="mt-2">您今天出院第3天了，想了解一下您的恢复情况。请问今天<strong>空腹血糖</strong>测了吗？数值是多少？</p>
+                  <p class="mt-3 text-[10px] text-gray-400 border-t border-gray-200 pt-2">
+                    *以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*
+                  </p>
+                </div>
+              </div>
+
+              <!-- User Message -->
+              <div class="flex gap-3 justify-end">
+                <div class="chat-bubble chat-user">
+                  <p>测了，今天空腹血糖 6.8，比昨天低了一点</p>
+                </div>
+              </div>
+
+              <!-- AI Reply - Green -->
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-medical-100 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="heart-pulse" class="w-4 h-4 text-medical-600" aria-hidden="true"></i>
+                </div>
+                <div class="chat-bubble chat-ai">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="alert-badge alert-green text-[10px] py-0.5 px-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                      指标正常
+                    </span>
+                    <span class="text-[10px] text-gray-400">趋势: 持续改善</span>
+                  </div>
+                  <p>空腹血糖 <strong>6.8 mmol/L</strong>，在目标范围内（4.4-7.0），而且比昨天的 7.2 有所下降，控制得不错！继续保持目前的用药和饮食方案。</p>
+                  <div class="mt-3 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
+                    <p class="text-[10px] text-blue-700">
+                      <i data-lucide="book-open" class="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true"></i>
+                      <strong>循证来源</strong>: 中国2型糖尿病防治指南(2020) — 空腹血糖控制目标 4.4-7.0 mmol/L
+                      <span class="evidence-tag grade-a ml-1">A级</span>
+                    </p>
+                  </div>
+                  <p class="mt-3">另外，最近有没有感觉<strong>心慌、出汗、手抖</strong>的情况？这是低血糖的常见症状，需要留意。</p>
+                  <p class="mt-3 text-[10px] text-gray-400 border-t border-gray-200 pt-2">
+                    *以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*
+                  </p>
+                </div>
+              </div>
+
+              <!-- User Message 2 -->
+              <div class="flex gap-3 justify-end">
+                <div class="chat-bubble chat-user">
+                  <p>昨天下午有点心慌，不过吃了点东西就好了</p>
+                </div>
+              </div>
+
+              <!-- AI Reply - Yellow -->
+              <div class="flex gap-3">
+                <div class="w-8 h-8 rounded-full bg-medical-100 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="heart-pulse" class="w-4 h-4 text-medical-600" aria-hidden="true"></i>
+                </div>
+                <div class="chat-bubble chat-ai">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="alert-badge alert-yellow text-[10px] py-0.5 px-2">
+                      <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                      需要关注
+                    </span>
+                  </div>
+                  <p>下午心慌，进食后缓解，这很可能是<strong>低血糖反应</strong>。请问当时距离上次进食多久了？</p>
+                  <p class="mt-2">建议您：</p>
+                  <ul class="mt-1 space-y-1 text-xs">
+                    <li class="flex items-start gap-1.5"><span class="text-medical-400">1.</span> 下午 3-4 点加餐一次（如一小杯酸奶或几块饼干）</li>
+                    <li class="flex items-start gap-1.5"><span class="text-medical-400">2.</span> 随身携带糖果或饼干以备急用</li>
+                    <li class="flex items-start gap-1.5"><span class="text-medical-400">3.</span> 如果频繁出现（每周2次以上），请提前到门诊复查</li>
+                  </ul>
+                  <div class="mt-3 p-2.5 bg-amber-50 rounded-lg border border-amber-100">
+                    <p class="text-[10px] text-amber-700">
+                      <i data-lucide="book-open" class="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true"></i>
+                      <strong>循证来源</strong>: 盐酸二甲双胍片说明书 — 常见不良反应包括低血糖，宜在进餐时或餐后服用
+                      <span class="evidence-tag grade-e ml-1">E级</span>
+                    </p>
+                  </div>
+                  <p class="mt-3 text-[10px] text-gray-400 border-t border-gray-200 pt-2">
+                    *以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Input -->
+            <div class="p-4 border-t border-gray-100">
+              <div class="flex items-center gap-3">
+                <label for="chat-input" class="sr-only">输入您的情况</label>
+                <input id="chat-input" type="text" name="chat-message" placeholder="输入您的情况…"
+                  autocomplete="off"
+                  onkeypress="if(event.key === 'Enter') sendMessage()"
+                  class="flex-1 border border-gray-200 rounded-lg px-4 py-2.5 text-sm
+                         focus:border-medical-400 focus:ring-2 focus:ring-medical-100 transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-200" />
+                <button class="btn-primary px-5 hover:brightness-110" onclick="sendMessage()" aria-label="发送消息">
+                  <i data-lucide="send" class="w-4 h-4" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Sidebar: Trend + Evidence -->
+        <div class="lg:col-span-1 space-y-6">
+          <!-- Trend Panel -->
+          <div class="card p-5">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+              <i data-lucide="trending-up" class="w-4 h-4 text-medical-500" aria-hidden="true"></i>
+              指标趋势
+            </h3>
+            <div class="space-y-3">
+              <div class="p-3 bg-green-50 rounded-lg border border-green-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-green-700">空腹血糖</span>
+                  <span class="text-xs text-green-600 font-semibold">6.8</span>
+                </div>
+                <div class="flex items-center gap-1 mt-1">
+                  <span class="text-[10px] text-green-600">持续改善</span>
+                  <i data-lucide="arrow-down-right" class="w-3 h-3 text-green-500" aria-hidden="true"></i>
+                </div>
+                <div class="flex gap-0.5 mt-2">
+                  <div class="h-1 flex-1 rounded bg-green-300"></div>
+                  <div class="h-1 flex-1 rounded bg-green-300"></div>
+                  <div class="h-1 flex-1 rounded bg-green-400"></div>
+                  <div class="h-1 flex-1 rounded bg-green-400"></div>
+                  <div class="h-1 flex-1 rounded bg-green-500"></div>
+                </div>
+              </div>
+              <div class="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-amber-700">血压</span>
+                  <span class="text-xs text-amber-600 font-semibold">142/88</span>
+                </div>
+                <div class="flex items-center gap-1 mt-1">
+                  <span class="text-[10px] text-amber-600">波动中</span>
+                  <i data-lucide="minus" class="w-3 h-3 text-amber-500" aria-hidden="true"></i>
+                </div>
+                <div class="flex gap-0.5 mt-2">
+                  <div class="h-1 flex-1 rounded bg-amber-300"></div>
+                  <div class="h-1 flex-1 rounded bg-amber-400"></div>
+                  <div class="h-1 flex-1 rounded bg-amber-300"></div>
+                  <div class="h-1 flex-1 rounded bg-amber-400"></div>
+                  <div class="h-1 flex-1 rounded bg-amber-300"></div>
+                </div>
+              </div>
+              <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-gray-600">体重</span>
+                  <span class="text-xs text-gray-500 font-semibold">70.5 kg</span>
+                </div>
+                <div class="flex items-center gap-1 mt-1">
+                  <span class="text-[10px] text-gray-500">稳定</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert History -->
+          <div class="card p-5">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+              <i data-lucide="bell" class="w-4 h-4 text-medical-500" aria-hidden="true"></i>
+              预警记录
+            </h3>
+            <div class="space-y-2">
+              <div class="flex items-center gap-2 text-xs p-2 bg-green-50 rounded-md">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                <span class="text-green-700">Day 1-3: 指标正常</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs p-2 bg-amber-50 rounded-md">
+                <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                <span class="text-amber-700">Day 3: 疑似低血糖</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Evidence Panel -->
+          <div class="card p-5">
+            <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
+              <i data-lucide="book-open" class="w-4 h-4 text-medical-500" aria-hidden="true"></i>
+              引用证据
+            </h3>
+            <div class="space-y-2">
+              <div class="p-2.5 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="evidence-tag grade-a text-[9px]">A级</span>
+                </div>
+                <p class="text-[10px] text-gray-600 leading-relaxed">中国2型糖尿病防治指南(2020版)</p>
+              </div>
+              <div class="p-2.5 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="evidence-tag grade-e text-[9px]">E级</span>
+                </div>
+                <p class="text-[10px] text-gray-600 leading-relaxed">盐酸二甲双胍片说明书</p>
+              </div>
+              <div class="p-2.5 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="evidence-tag grade-c text-[9px]">C级</span>
+                </div>
+                <p class="text-[10px] text-gray-600 leading-relaxed">老年糖尿病患者低血糖风险研究</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const API_BASE = '';
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Add sr-only utility
+    const srStyle = document.createElement('style');
+    srStyle.textContent = '.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0; }';
+    document.head.appendChild(srStyle);
+
+    function switchPage(page) {
+      // Update URL hash for deep-linking
+      history.replaceState(null, '', '#' + page);
+
+      // Hide all pages
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+      // Show selected page
+      document.getElementById('page-' + page).classList.add('active');
+
+      // Update nav
+      const navMap = { upload: 'nav-upload', plan: 'nav-plan', chat: 'nav-chat' };
+      document.getElementById(navMap[page]).classList.add('active');
+
+      // Re-init icons after page switch
+      setTimeout(() => lucide.createIcons(), 50);
+    }
+
+    // Restore page from URL hash on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const hash = window.location.hash.replace('#', '');
+      if (['upload', 'plan', 'chat'].includes(hash)) {
+        switchPage(hash);
+      }
+      // Check API status
+      checkApiStatus();
+    });
+
+    async function checkApiStatus() {
+      try {
+        const res = await fetch(API_BASE + '/api/health');
+        const data = await res.json();
+        if (data.status === 'ok') {
+          const statusBadge = document.querySelector('.alert-badge.alert-green');
+          if (statusBadge) {
+            statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>系统正常 | LLM: StepFun';
+          }
+        }
+      } catch (e) {
+        console.error('API health check failed:', e);
+      }
+    }
+
+    function loadSample() {
+      document.getElementById('discharge-text').value =
+`入院日期：2026-06-20  出院日期：2026-06-28
+患者姓名：张三  性别：男  年龄：65岁
+
+主诉：多饮多尿3月，血糖升高
+
+入院诊断：
+1. 2型糖尿病
+2. 高血压3级（极高危）
+3. 高脂血症
+
+入院情况：
+空腹血糖 12.3 mmol/L，糖化血红蛋白 9.8%，血压 165/98 mmHg，
+总胆固醇 6.2 mmol/L，LDL-C 4.1 mmol/L
+
+治疗经过：
+入院后给予胰岛素强化治疗控制血糖，同时口服二甲双胍 500mg bid，
+氨氯地平 5mg qd 降压，阿托伐他汀 20mg qn 调脂。
+经治疗后血糖逐渐平稳，空腹血糖降至 7.8 mmol/L。
+
+出院诊断：同入院诊断
+
+出院医嘱：
+1. 二甲双胍 500mg 早晚餐后口服
+2. 氨氯地平 5mg 晨起口服
+3. 阿托伐他汀 20mg 睡前口服
+4. 低盐低脂糖尿病饮食
+5. 定期监测血糖、血压
+6. 出院后2周门诊复查（内分泌科）
+7. 复查项目：糖化血红蛋白、肝肾功能、血脂
+
+注意事项：
+注意有无低血糖症状（心慌、出汗、手抖），如有发生及时进食。
+如出现头晕、视物模糊等症状及时就诊。`;
+    }
+
+    async function parseSummary() {
+      const text = document.getElementById('discharge-text').value.trim();
+      if (!text) {
+        alert('请输入出院小结文本');
+        return;
+      }
+
+      const btn = event.target.closest('button');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="loader" class="inline w-4 h-4 mr-1.5 -mt-0.5 animate-spin" aria-hidden="true"></i>AI 解析中...';
+      lucide.createIcons();
+
+      try {
+        const res = await fetch(API_BASE + '/api/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          showParseResult(data.data);
+        } else {
+          alert('解析失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('请求失败: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        lucide.createIcons();
+      }
+    }
+
+    function showParseResult(responseData) {
+      const resultDiv = document.getElementById('parsed-result');
+          
+      // responseData 结构: { parsed: {...}, risk_profile: {...}, evidence_stats: {...} }
+      const parsed = responseData.parsed;
+          
+      if (!parsed) {
+        console.error('解析数据为空:', responseData);
+        alert('解析失败：数据格式错误');
+        return;
+      }
+          
+      // Update patient info
+      const patientInfo = `<p class="font-medium">${parsed.patient_name || '未知'}，${parsed.gender || '未知'}，${parsed.age || '未知'}岁</p>`;
+      const patientElement = resultDiv.querySelector('.grid.grid-cols-2 > div:first-child p.font-medium');
+      if (patientElement) {
+        patientElement.outerHTML = patientInfo;
+      }
+          
+      // Update diagnoses
+      const diagContainer = resultDiv.querySelector('.col-span-2:nth-child(3) .flex.flex-wrap');
+      if (diagContainer && parsed.diagnoses && Array.isArray(parsed.diagnoses)) {
+        diagContainer.innerHTML = parsed.diagnoses.map(d => 
+          `<span class="px-2.5 py-1 bg-medical-50 text-medical-700 rounded-md text-xs font-medium">${d}</span>`
+        ).join('');
+      }
+          
+      // Update medications
+      const medContainer = resultDiv.querySelector('.col-span-2:nth-child(4) .space-y-1\\.5');
+      if (medContainer && parsed.medications && Array.isArray(parsed.medications)) {
+        medContainer.innerHTML = parsed.medications.map(m => `
+          <div class="flex items-center gap-2 text-xs">
+            <span class="w-1.5 h-1.5 rounded-full bg-medical-400"></span>
+            <span class="font-medium">${m.name}</span>
+            <span class="text-gray-400">${m.dosage} ${m.frequency} ${m.timing || ''}</span>
+          </div>
+        `).join('');
+      }
+          
+      // Update vital signs
+      const vitalContainer = resultDiv.querySelector('.col-span-2:nth-child(5) .flex.gap-4');
+      if (vitalContainer && parsed.vital_signs && Array.isArray(parsed.vital_signs)) {
+        vitalContainer.innerHTML = parsed.vital_signs.map(v => {
+          const colorClass = v.status === 'normal' ? '' : 'text-red-500';
+          return `
+            <div class="stat-card flex-1">
+              <div class="stat-value ${colorClass}">${v.value}</div>
+              <div class="stat-label">${v.name} ${v.unit || ''}</div>
+            </div>
+          `;
+        }).join('');
+      }
+          
+      // Show result
+      resultDiv.style.display = 'block';
+      setTimeout(() => lucide.createIcons(), 50);
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      
+      if (!message) {
+        return;
+      }
+
+      // Disable input and button
+      input.disabled = true;
+      const sendBtn = event.target.closest('button');
+      if (sendBtn) {
+        sendBtn.disabled = true;
+      }
+
+      // Add user message to chat
+      addMessageToChat(message, 'user');
+      input.value = '';
+
+      try {
+        // Call backend API
+        const res = await fetch(API_BASE + '/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: 'default',
+            message: message
+          })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          // Add AI reply to chat
+          addMessageToChat(data.data.reply, 'ai', data.data);
+          
+          // Update alert status if provided
+          if (data.data.alert_level) {
+            updateAlertStatus(data.data.alert_level);
+          }
+        } else {
+          addMessageToChat('抱歉，处理您的消息时出错：' + (data.error || '未知错误'), 'ai');
+        }
+      } catch (e) {
+        console.error('Chat error:', e);
+        addMessageToChat('抱歉，网络连接失败，请稍后重试。', 'ai');
+      } finally {
+        // Re-enable input and button
+        input.disabled = false;
+        if (sendBtn) {
+          sendBtn.disabled = false;
+        }
+        input.focus();
+        lucide.createIcons();
+      }
+    }
+
+    function addMessageToChat(text, sender, extraData = null) {
+      const messagesContainer = document.getElementById('chat-messages');
+      
+      // Create message HTML
+      let messageHTML = '';
+      
+      if (sender === 'user') {
+        messageHTML = `
+          <div class="flex gap-3 justify-end">
+            <div class="chat-bubble chat-user">
+              <p>${escapeHtml(text)}</p>
+            </div>
+          </div>
+        `;
+      } else {
+        // AI message with optional evidence refs
+        let evidenceHTML = '';
+        if (extraData && extraData.evidence_refs && extraData.evidence_refs.length > 0) {
+          const grade = extraData.evidence_grades ? extraData.evidence_grades[0] : 'E';
+          const gradeClass = grade === 'A' ? 'grade-a' : grade === 'B' ? 'grade-b' : grade === 'C' ? 'grade-c' : 'grade-e';
+          
+          evidenceHTML = `
+            <div class="mt-3 p-2.5 bg-blue-50 rounded-lg border border-blue-100">
+              <p class="text-[10px] text-blue-700">
+                <i data-lucide="book-open" class="inline w-3 h-3 mr-1 -mt-0.5" aria-hidden="true"></i>
+                <strong>循证来源</strong>: ${escapeHtml(extraData.evidence_refs[0])}
+                <span class="evidence-tag ${gradeClass} ml-1">${grade}级</span>
+              </p>
+            </div>
+          `;
+        }
+        
+        messageHTML = `
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-medical-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="heart-pulse" class="w-4 h-4 text-medical-600" aria-hidden="true"></i>
+            </div>
+            <div class="chat-bubble chat-ai">
+              <div style="white-space: pre-wrap;">${formatText(text)}</div>
+              ${evidenceHTML}
+              <p class="mt-3 text-[10px] text-gray-400 border-t border-gray-200 pt-2">
+                *以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*
+              </p>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Append to messages container
+      messagesContainer.insertAdjacentHTML('beforeend', messageHTML);
+      
+      // Scroll to bottom
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      
+      // Re-init icons
+      setTimeout(() => lucide.createIcons(), 50);
+    }
+
+    function updateAlertStatus(level) {
+      const alertBadge = document.getElementById('chat-alert');
+      if (!alertBadge) return;
+      
+      let badgeClass = '';
+      let badgeText = '';
+      let dotColor = '';
+      
+      switch (level) {
+        case 'green':
+          badgeClass = 'alert-green';
+          badgeText = '状态正常';
+          dotColor = 'bg-green-500';
+          break;
+        case 'yellow':
+          badgeClass = 'alert-yellow';
+          badgeText = '需要关注';
+          dotColor = 'bg-yellow-500';
+          break;
+        case 'red':
+          badgeClass = 'alert-red';
+          badgeText = '预警提醒';
+          dotColor = 'bg-red-500';
+          break;
+        default:
+          badgeClass = 'alert-green';
+          badgeText = '状态正常';
+          dotColor = 'bg-green-500';
+      }
+      
+      alertBadge.className = `alert-badge ${badgeClass}`;
+      alertBadge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotColor}"></span>${badgeText}`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatText(text) {
+      // Simple markdown-like formatting
+      let formatted = escapeHtml(text);
+      
+      // Bold **text**
+      formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      
+      // Lists
+      formatted = formatted.replace(/\n(\d+)\. /g, '<br/>$1. ');
+      
+      return formatted;
+    }
+  </script>
+</body>
+</html>

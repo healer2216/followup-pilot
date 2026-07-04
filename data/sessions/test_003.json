@@ -1,0 +1,43 @@
+{
+  "session_id": "test_003",
+  "patient_id": "patient_001",
+  "created_at": "2026-07-02T03:45:58.964896",
+  "discharge_summary": null,
+  "plan": null,
+  "messages": [
+    {
+      "role": "user",
+      "content": "今天空腹血糖6.5",
+      "timestamp": "2026-07-02T03:46:11.388892",
+      "alert_level": null,
+      "trend_info": null,
+      "evidence_refs": []
+    },
+    {
+      "role": "assistant",
+      "content": "你坚持监测血糖的习惯真的特别好，这是管理病情非常关键的一步哦~\n\n正常成人的空腹血糖参考范围是3.9~6.1mmol/L，你这次的测量值6.5mmol/L比正常上限稍高，目前属于轻度升高的状态[来源：《中国2型糖尿病防治指南（2020年版）》 - 空腹血糖正常参考值为3.9~6.1mmol/L，空腹血糖6.1~7.0mmol/L为空腹血糖受损，属于糖尿病前期区间]。最近你可以先调整一下生活方式，尽量少吃含精制糖、高油高盐的食物，多吃新鲜蔬菜、全谷物，适当做一些轻度的运动比如饭后散步，规律作息，后续可以再监测几天血糖看看变化哦~如果后续空腹血糖持续超过7.0mmol/L，或者出现明显不适，一定要及时就医让医生评估情况。\n\n最近有没有觉得口干、总想喝水、尿量变多、容易累这些不舒服的情况呀？\n\n---\n*以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*",
+      "timestamp": "2026-07-02T03:46:11.388945",
+      "alert_level": "green",
+      "trend_info": null,
+      "evidence_refs": []
+    }
+  ],
+  "current_alert": "green",
+  "vital_records": [
+    {
+      "date": "Day1",
+      "type": "空腹血糖",
+      "value": 7.2
+    },
+    {
+      "date": "Day2",
+      "type": "空腹血糖",
+      "value": 7.0
+    },
+    {
+      "date": "Day3",
+      "type": "空腹血糖",
+      "value": 6.8
+    }
+  ]
+}

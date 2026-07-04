@@ -1,0 +1,43 @@
+{
+  "session_id": "test_002",
+  "patient_id": "patient_001",
+  "created_at": "2026-07-02T03:32:11.007885",
+  "discharge_summary": null,
+  "plan": null,
+  "messages": [
+    {
+      "role": "user",
+      "content": "今天空腹血糖6.5",
+      "timestamp": "2026-07-02T03:32:22.908373",
+      "alert_level": null,
+      "trend_info": null,
+      "evidence_refs": []
+    },
+    {
+      "role": "assistant",
+      "content": "您好呀，先别太担心~您今天空腹血糖6.5mmol/L属于轻度升高的情况，目前先不用过度焦虑。近期您可以先做好生活方式调整：饮食上减少精制米面、高糖零食、含糖饮品的摄入，适当增加燕麦、玉米等粗粮占比，避免暴饮暴食；每天可以保持30分钟左右的温和运动，比如散步、慢走，不要做剧烈运动哦。同时建议您后续监测餐后2小时血糖，留意有没有口干、多饮、多尿、乏力这些不适症状。\n[来源：《中国2型糖尿病防治指南（2023年版）》- 空腹血糖6.1~7.0mmol/L为空腹血糖受损，属于糖尿病前期，多数可通过生活方式干预恢复正常血糖水平]\n请问您最近餐后2小时血糖大概是多少呀？有没有出现刚才说的那些不舒服的症状呢？\n\n---\n*以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*",
+      "timestamp": "2026-07-02T03:32:22.908465",
+      "alert_level": "green",
+      "trend_info": null,
+      "evidence_refs": []
+    }
+  ],
+  "current_alert": "green",
+  "vital_records": [
+    {
+      "date": "Day1",
+      "type": "空腹血糖",
+      "value": 7.2
+    },
+    {
+      "date": "Day2",
+      "type": "空腹血糖",
+      "value": 7.0
+    },
+    {
+      "date": "Day3",
+      "type": "空腹血糖",
+      "value": 6.8
+    }
+  ]
+}

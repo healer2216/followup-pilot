@@ -1,0 +1,43 @@
+{
+  "session_id": "session-1783002246647",
+  "patient_id": "patient_001",
+  "created_at": "2026-07-02T14:25:43.921319",
+  "discharge_summary": null,
+  "plan": null,
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好",
+      "timestamp": "2026-07-02T14:25:50.892910",
+      "alert_level": null,
+      "trend_info": null,
+      "evidence_refs": []
+    },
+    {
+      "role": "assistant",
+      "content": "您好呀～我是您的随访护士，今天来关心您最近的恢复情况啦😊 首先想问问您最近有没有按时监测血压、血糖这类核心指标呀？监测的结果都正常吗？另外最近有没有出现什么不舒服的症状，比如头晕、心慌、乏力、胸闷这类的情况呀？\n[来源：《慢性病患者随访管理指南（2022版）》- 随访评估需优先关注患者核心指标监测依从性、结果异常情况，以及相关症状的变化，是判断恢复情况的核心依据]\n---\n*以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*\n您方便和我说说最近的具体情况吗？",
+      "timestamp": "2026-07-02T14:25:50.892953",
+      "alert_level": "green",
+      "trend_info": null,
+      "evidence_refs": []
+    }
+  ],
+  "current_alert": "green",
+  "vital_records": [
+    {
+      "date": "Day1",
+      "type": "空腹血糖",
+      "value": 7.2
+    },
+    {
+      "date": "Day2",
+      "type": "空腹血糖",
+      "value": 7.0
+    },
+    {
+      "date": "Day3",
+      "type": "空腹血糖",
+      "value": 6.8
+    }
+  ]
+}

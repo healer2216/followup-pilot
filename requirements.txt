@@ -1,0 +1,21 @@
+# Core dependencies
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+pydantic==2.5.3
+python-dotenv==1.0.1
+
+# HTTP client
+httpx==0.26.0
+
+# LLM integration
+openai==1.12.0
+
+# Streamlit frontend
+streamlit==1.31.1
+
+# LangGraph (optional for advanced workflow)
+langgraph==0.0.28
+langchain==0.1.9
+
+# Utilities
+numpy==1.26.4

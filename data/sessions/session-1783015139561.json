@@ -1,0 +1,52 @@
+{
+  "session_id": "session-1783015139561",
+  "patient_id": "patient_001",
+  "created_at": "2026-07-02T18:00:05.345671",
+  "discharge_summary": null,
+  "plan": null,
+  "messages": [
+    {
+      "role": "user",
+      "content": "我今天空腹血糖 7.2，血压 135/85，感觉还可以",
+      "timestamp": "2026-07-02T18:00:28.234321",
+      "alert_level": null,
+      "trend_info": null,
+      "evidence_refs": []
+    },
+    {
+      "role": "assistant",
+      "content": "您好呀，看到您今天认真监测了空腹血糖和血压，还主动反馈情况，真的特别棒👍 先和您说下您今天的指标情况哦：您测的空腹血糖7.2mmol/L、血压135/85mmHg，目前都在平稳可控的区间，整体情况很不错~\n\n和您说下需要注意的小细节哦：如果您是在进行血糖监测管理的话，常规的空腹血糖理想控制目标通常是4.4~7.0mmol/L[来源：《中国2型糖尿病防治指南（2023年版）》- 空腹血糖控制目标：多数非妊娠成年2型糖尿病患者，空腹血糖控制目标为4.4~7.0mmol/L]，您今天的数值稍微接近上限，平时可以注意下减少高糖食物、含糖饮品的摄入，规律进食；而135/85mmHg属于正常高值范围[来源：《中国高血压防治指南（2023年版）》- 正常高值定义：收缩压120~139mmHg和/或舒张压80~89mmHg]，日常可以注意下少碰高盐腌制食品，每天尽量保证30分钟左右的温和运动，比如慢走、打太极，对稳定指标都很有帮助~\n\n对了，您最近有没有按时吃医生开的药呀？最近有没有出现口干、多饮、头晕、乏力之类的不舒服的症状呢？\n\n---\n*以上建议仅供参考，不替代专业医嘱。如症状加重，请及时就医。*",
+      "timestamp": "2026-07-02T18:00:28.234375",
+      "alert_level": "green",
+      "trend_info": {
+        "direction": "## 指标趋势分析\n- 空腹血糖：最新 7.2 mmol/L（正常），趋势 insufficient ❓\n- 收缩压：最新 135 mmHg（正常），趋势 insufficient ❓\n- 舒张压：最新 85 mmHg（正常），趋势 insufficient ❓\n\n所有指标趋势平稳，无明显异常。",
+        "upgrades": []
+      },
+      "evidence_refs": []
+    }
+  ],
+  "current_alert": "green",
+  "vital_records": [
+    {
+      "date": "Day1",
+      "type": "空腹血糖",
+      "value": 7.2
+    },
+    {
+      "date": "Day2",
+      "type": "空腹血糖",
+      "value": 7.0
+    },
+    {
+      "date": "Day3",
+      "type": "空腹血糖",
+      "value": 6.8
+    },
+    {
+      "date": "2026-07-02",
+      "fasting_glucose": 7.2,
+      "blood_pressure_systolic": 135,
+      "blood_pressure_diastolic": 85
+    }
+  ]
+}

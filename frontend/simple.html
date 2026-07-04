@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>循证随访管家 - FollowUp Pilot (简化版)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 0; text-align: center; margin-bottom: 30px; }
+    h1 { font-size: 2rem; margin-bottom: 10px; }
+    .subtitle { opacity: 0.9; font-size: 1rem; }
+    .card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { color: #667eea; margin-bottom: 15px; font-size: 1.3rem; }
+    textarea { width: 100%; height: 200px; padding: 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; resize: vertical; }
+    textarea:focus { outline: none; border-color: #667eea; }
+    button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: transform 0.2s; }
+    button:hover { transform: translateY(-2px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .result { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; display: none; }
+    .result.show { display: block; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-info { background: #cce5ff; color: #004085; }
+    pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+    .loading { text-align: center; padding: 20px; color: #666; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏥 循证随访管家</h1>
+    <p class="subtitle">FollowUp Pilot - AI 驱动的出院随访系统</p>
+  </header>
+
+  <div class="container">
+    <!-- 上传页面 -->
+    <div class="card">
+      <h2> 上传出院小结</h2>
+      <textarea id="summary-text" placeholder="请粘贴出院小结文本..."></textarea>
+      <div style="margin-top: 15px;">
+        <button onclick="loadSample()"> 加载示例</button>
+        <button onclick="parseSummary()" id="btn-parse">🤖 AI 解析</button>
+      </div>
+      
+      <div id="parse-result" class="result">
+        <h3>✅ 解析结果</h3>
+        <div id="parsed-content"></div>
+      </div>
+    </div>
+
+    <!-- API 状态 -->
+    <div class="card">
+      <h2>🔌 API 连接状态</h2>
+      <div id="api-status">
+        <span class="loading"><span class="spinner"></span>检查中...</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:8080';
+
+    // 加载示例数据
+    function loadSample() {
+      document.getElementById('summary-text').value = `患者张三，男，65岁。入院日期2026-06-20，出院日期2026-06-28。
+
+诊断：
+1. 2型糖尿病
+2. 高血压3级（极高危）
+3. 冠状动脉粥样硬化性心脏病
+
+用药方案：
+- 二甲双胍 500mg bid（餐后）
+- 氨氯地平 5mg qd（晨起）
+- 阿托伐他汀 20mg qn（睡前）
+- 阿司匹林肠溶片 100mg qd
+
+出院时生命体征：
+- 空腹血糖：7.8 mmol/L（参考范围：4.4-7.0）
+- 血压：145/92 mmHg（参考范围：<140/90）
+- 糖化血红蛋白：5.2%（参考范围：4.0-6.0）`;
+    }
+
+    // 解析出院小结
+    async function parseSummary() {
+      const text = document.getElementById('summary-text').value.trim();
+      if (!text) {
+        alert('请输入出院小结文本');
+        return;
+      }
+
+      const btn = document.getElementById('btn-parse');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>解析中...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/parse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+          showParseResult(data.data);
+        } else {
+          alert('解析失败: ' + (data.error || '未知错误'));
+        }
+      } catch (e) {
+        alert('请求失败: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🤖 AI 解析';
+      }
+    }
+
+    // 显示解析结果
+    function showParseResult(parsed) {
+      const resultDiv = document.getElementById('parse-result');
+      const contentDiv = document.getElementById('parsed-content');
+      
+      let html = `
+        <div style="margin-bottom: 15px;">
+          <strong>患者信息：</strong><br/>
+          ${parsed.patient_name} | ${parsed.gender} | ${parsed.age}岁<br/>
+          <span class="badge badge-info">入院: ${parsed.admission_date}</span>
+          <span class="badge badge-info">出院: ${parsed.discharge_date}</span>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <strong>诊断：</strong><br/>
+          ${parsed.diagnoses.map(d => `<span class="badge badge-warning">${d}</span>`).join(' ')}
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <strong>用药方案：</strong><br/>
+          ${parsed.medications.map(m => `
+            <div style="margin: 5px 0; padding: 8px; background: white; border-radius: 4px;">
+              💊 ${m.name} ${m.dosage} - ${m.frequency} (${m.timing})
+            </div>
+          `).join('')}
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <strong>生命体征：</strong><br/>
+          ${parsed.vital_signs.map(v => `
+            <div style="margin: 5px 0; padding: 8px; background: white; border-radius: 4px;">
+               ${v.name}: ${v.value} ${v.unit} 
+              <span class="badge ${v.status === 'normal' ? 'badge-success' : 'badge-warning'}">
+                ${v.status === 'normal' ? '正常' : '异常'}
+              </span>
+            </div>
+          `).join('')}
+        </div>
+        
+        <div>
+          <strong>置信度：</strong>
+          <span class="badge badge-success">${(parsed.confidence * 100).toFixed(1)}%</span>
+        </div>
+      `;
+      
+      contentDiv.innerHTML = html;
+      resultDiv.classList.add('show');
+    }
+
+    // 检查 API 连接
+    async function checkApiStatus() {
+      const statusDiv = document.getElementById('api-status');
+      try {
+        const res = await fetch(`${API_BASE}/api/health`);
+        const data = await res.json();
+        
+        if (data.status === 'ok') {
+          statusDiv.innerHTML = `
+            <span class="badge badge-success">✅ 已连接</span>
+            <div style="margin-top: 10px; font-size: 14px; color: #666;">
+              版本: ${data.version}<br/>
+              LLM: StepFun step-3.7-flash<br/>
+              KnowS: 循证检索服务就绪
+            </div>
+          `;
+        } else {
+          statusDiv.innerHTML = '<span class="badge badge-warning">️ API 异常</span>';
+        }
+      } catch (e) {
+        statusDiv.innerHTML = '<span class="badge badge-warning"> 未连接后端</span>';
+      }
+    }
+
+    // 页面加载时检查 API
+    window.addEventListener('DOMContentLoaded', () => {
+      checkApiStatus();
+      loadSample();
+    });
+  </script>
+</body>
+</html>
